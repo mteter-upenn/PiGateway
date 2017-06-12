@@ -1,0 +1,79 @@
+{
+  "objectName":"Default",
+  "objectId":0,
+  "deviceIP":"0.0.0.0",
+  "modbusId":1,
+  "mappingName":"E-Mon D-Mon 3400",
+  "meterModelName":"E-Mon D-Mon 3400",
+  "holdingRegisters": {
+    "pollingTime":30000,
+    "registers":[
+      {
+        "start":1,
+        "datatype":"uint32",
+        "wordswap":"msw",
+        "objectName":"real_energy_delivered_int",
+        "objectDescription":"Real energy into meter in uint32",
+        "poll":"no",
+        "readOnly":"yes",
+        "groupConsecutive":"yes",
+        "groupGaps":"yes",
+        "covIncrement":0
+      },
+      {
+        "start":2,
+        "datatype":"float",
+        "wordswap":"msw",
+        "objectName":"default",
+        "objectDescription":"default",
+        "poll":"yes",
+        "readOnly":"yes",
+        "groupConsecutive":"yes",
+        "groupGaps":"yes",
+        "covIncrement":0
+      }
+    ]
+  },
+  "inputRegisters": {
+    "pollingTime":30000,
+    "registers":[
+      {
+        "start":1,
+        "datatype":"float",
+        "wordswap":"msw",
+        "objectName":"default",
+        "objectDescription":"default",
+        "poll":"yes",
+        "readOnly":"yes",
+        "groupConsecutive":"yes",
+        "groupGaps":"yes",
+        "covIncrement":0
+      },
+      {
+        "start":2,
+        "datatype":"float",
+        "wordswap":"msw",
+        "objectName":"default",
+        "objectDescription":"default",
+        "poll":"yes",
+        "readOnly":"yes",
+        "groupConsecutive":"yes",
+        "groupGaps":"yes",
+        "covIncrement":0
+      }
+    ]
+  },
+  "coilBits": {
+    "pollingTime":30000,
+    "coils":[
+      {}
+    ]
+  },
+  "inputBits": {
+    "pollingTime":30000,
+    "coils":[
+      {}
+    ]
+  }
+
+}
