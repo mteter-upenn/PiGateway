@@ -1,9 +1,9 @@
 {
-  "deviceName":"DRL small steam",
-  "deviceInstance":4000001,
-  "deviceDescription":"DRL small steam meter- connected by NC valve to Towne through skirkanich",
+  "deviceName":"DRL large steam",
+  "deviceInstance":4000002,
+  "deviceDescription":"DRL large steam meter",
   "deviceIP":"10.166.2.132",
-  "modbusId":10,
+  "modbusId":9,
   "mapName":"KEP Steam",
   "mapRev":"a",
   "meterModelName":"KEP Steam",

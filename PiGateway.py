@@ -1,17 +1,17 @@
 #!/usr/bin/env python
 
 import random
-import argparse
+# import argparse
 
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
-from bacpypes.consolelogging import ArgumentParser
+# from bacpypes.consolelogging import ArgumentParser
 
 from bacpypes.core import run
 from bacpypes.comm import bind
 
-from bacpypes.pdu import Address, GlobalBroadcast, LocalBroadcast
+from bacpypes.pdu import Address, GlobalBroadcast  # , LocalBroadcast
 from bacpypes.netservice import NetworkServiceAccessPoint, NetworkServiceElement
-from bacpypes.bvllservice import BIPForeign, BIPBBMD, AnnexJCodec, UDPMultiplexer
+from bacpypes.bvllservice import BIPForeign, AnnexJCodec, UDPMultiplexer  # , BIPBBMD
 
 from bacpypes.app import Application
 from bacpypes.appservice import StateMachineAccessPoint, ApplicationServiceAccessPoint
@@ -19,14 +19,29 @@ from bacpypes.service.device import LocalDeviceObject, WhoIsIAmServices
 from bacpypes.service.object import ReadWritePropertyServices, ReadWritePropertyMultipleServices
 
 from bacpypes.primitivedata import Real
-from bacpypes.object import AnalogValueObject, Property, register_object_type, AnalogInputObject
+from bacpypes.object import Property, register_object_type, AnalogInputObject, PropertyError  # , AnalogValueObject
 
 from bacpypes.vlan import Network, Node
 from bacpypes.errors import ExecutionError
 
+from modbusregisters import RegisterBankThread, RegisterReader
+import queue
+
+from bacpypes.basetypes import PropertyIdentifier
 # some debugging
 _debug = 0
 _log = ModuleLogger(globals())
+
+
+PropertyIdentifier.enumerations['presentValue1'] = 1024
+# PropertyIdentifier.enumerations[''] = 3000000
+# PropertyIdentifier.enumerations[''] = 3000000
+# PropertyIdentifier.enumerations[''] = 3000000
+# PropertyIdentifier.enumerations[''] = 3000000
+# PropertyIdentifier.enumerations[''] = 3000000
+# PropertyIdentifier.enumerations[''] = 3000000
+# PropertyIdentifier.enumerations[''] = 3000000
+# PropertyIdentifier.enumerations[''] = 3000000
 
 
 @bacpypes_debugging
@@ -34,34 +49,39 @@ class ModbusValueProperty(Property):
 
     def __init__(self, identifier):
         if _debug: ModbusValueProperty._debug("__init__ %r", identifier)
-        self.register_reader = None
         Property.__init__(self, identifier, Real, default=None, optional=True, mutable=False)
 
-    def ReadProperty(self, obj, arrayIndex=None):
-        if _debug: ModbusValueProperty._debug("ReadProperty %r arrayIndex=%r", obj, arrayIndex)
+    def ReadProperty(self, obj, array_index=None):
+        if _debug: ModbusValueProperty._debug("ReadProperty %r arrayIndex=%r", obj, array_index)
 
         # access an array
-        if arrayIndex is not None:
+        if array_index is not None:
             raise ExecutionError(errorClass='property', errorCode='propertyIsNotAnArray')
 
-        # check if register_reader was set, if not there will be no way to read the stored register values
-        if self.register_reader is None:
-            return float('NaN')
+        dev_inst = obj._parent_device_inst
+        # mb_func = obj.ReadProperty('modbusFunction')
+        # register_start = obj.ReadProperty('registerStart')
+        # num_regs = obj.ReadProperty('numberOfRegisters')
+        # reg_frmt = obj.ReadProperty('registerFormat')
+        # word_order = obj.ReadProperty('wordOrder')
+        # register_reader = obj._register_reader
 
         # return a random value
         value = random.random() * 100.0
         if _debug: ModbusValueProperty._debug("    - value: %r", value)
 
+        print('ReadProperty from property', obj.ReadProperty('objectIdentifier'), dev_inst)
+        # print('obj parent is', self.object_parent)
         return value
 
-    def WriteProperty(self, obj, value, arrayIndex=None, priority=None, direct=False):
+    def WriteProperty(self, obj, value, array_index=None, priority=None, direct=False):
         if _debug: ModbusValueProperty._debug("WriteProperty %r %r arrayIndex=%r priority=%r direct=%r", obj, value,
-                                              arrayIndex, priority, direct)
+                                              array_index, priority, direct)
         raise ExecutionError(errorClass='property', errorCode='writeAccessDenied')
 
-    def set_RegisterReader(self, register_reader):
-        self.register_reader = register_reader
-        print('set_RegisterReader')
+    def set_obj_parent(self, obj_id):
+        self.object_parent = obj_id
+        print('parent set:', obj_id)
 
 
 @bacpypes_debugging
@@ -70,22 +90,25 @@ class ModbusAnalogInputObject(AnalogInputObject):
         ModbusValueProperty('presentValue'),
     ]
 
-    def __init__(self, **kwargs):
+    def __init__(self, parent_device_inst, register_reader, **kwargs):
         if _debug: ModbusAnalogInputObject._debug("__init__ %r", kwargs)
         AnalogInputObject.__init__(self, **kwargs)
+        self._register_reader = register_reader
+        self._parent_device_inst = parent_device_inst
 
-    def set_present_value_RegisterReader(self, register_reader):
-        self._properties.get('presentValue').set_RegisterReader(register_reader)
-
+    # def ReadProperty(self, propid, arrayIndex=None):
+    #     print('object overwrite ReadProperty')
+    #     if propid=='presentValue':
+    #         prop = self._properties.get(propid)
+    #         if not prop:
+    #             raise PropertyError(propid)
+    #
+    #         # defer to the property to get the value
+    #         return prop.ReadProperty(self, arrayIndex)
+    #     else:
+    #         return AnalogInputObject.ReadProperty(self, propid, arrayIndex=arrayIndex)
 
 register_object_type(ModbusAnalogInputObject)
-
-
-
-
-
-
-
 
 
 #
@@ -93,12 +116,13 @@ register_object_type(ModbusAnalogInputObject)
 #
 
 @bacpypes_debugging
-#ADDED ReadWritePropertyMultipleServices
-class ModbusVLANApplication(Application, WhoIsIAmServices, ReadWritePropertyServices, ReadWritePropertyMultipleServices):
+# ADDED ReadWritePropertyMultipleServices
+class ModbusVLANApplication(Application, WhoIsIAmServices, ReadWritePropertyServices,
+                            ReadWritePropertyMultipleServices):
 
-    def __init__(self, vlan_device, vlan_address, aseID=None, register_reader=None):
-        if _debug: ModbusVLANApplication._debug("__init__ %r %r aseID=%r", vlan_device, vlan_address, aseID)
-        Application.__init__(self, vlan_device, vlan_address, aseID)
+    def __init__(self, vlan_device, vlan_address, ase_id=None):
+        if _debug: ModbusVLANApplication._debug("__init__ %r %r aseID=%r", vlan_device, vlan_address, ase_id)
+        Application.__init__(self, vlan_device, vlan_address, ase_id)
 
         # include a application decoder
         self.asap = ApplicationServiceAccessPoint()
@@ -128,7 +152,7 @@ class ModbusVLANApplication(Application, WhoIsIAmServices, ReadWritePropertyServ
         self.nsap.bind(self.vlan_node)
 
         # set register reader class that will look into block of registers for all associated slaves
-        self.register_reader = register_reader
+        # self.register_reader = register_reader
 
     def request(self, apdu):
         if _debug: ModbusVLANApplication._debug("[%s]request %r", self.vlan_node.address, apdu)
@@ -146,7 +170,7 @@ class ModbusVLANApplication(Application, WhoIsIAmServices, ReadWritePropertyServ
         if _debug: ModbusVLANApplication._debug("[%s]confirmation %r", self.vlan_node.address, apdu)
         Application.confirmation(self, apdu)
 
-    #ADDED
+    # ADDED
     def do_WhoIsRequest(self, apdu):
         print('whoisrequest from', apdu.pduSource)
         if apdu.pduSource == Address('0:130.91.137.90'):
@@ -155,13 +179,12 @@ class ModbusVLANApplication(Application, WhoIsIAmServices, ReadWritePropertyServ
         # apdu.pduSource = GlobalBroadcast() # global or local broadcast?
         WhoIsIAmServices.do_WhoIsRequest(self, apdu)
 
-    def add_object(self, obj):
-        Application.add_object(self, obj)
-        if obj.__class__.__name__ == 'ModbusAnalogInputObject':
-            obj.set_present_value_RegisterReader(self.register_reader)
+    # def add_object(self, obj):
+    #     Application.add_object(self, obj)
+    #     if obj.__class__.__name__ == 'ModbusAnalogInputObject':
+    #         obj.set_present_value_register_reader(self.register_reader)
 
-    #ADDED
-
+    # ADDED
 
 
 #
@@ -187,16 +210,16 @@ class VLANRouter:
         # self.annexj = AnnexJCodec()
         # self.mux = UDPMultiplexer(local_address)
 
-        #ADDED
-        #from WhoIsIAmForeign ForeignApplication
+        # ADDED
+        # from WhoIsIAmForeign ForeignApplication
         # create a generic BIP stack, bound to the Annex J server
         # on the UDP multiplexer
         self.bip = BIPForeign(Address('10.166.1.72'), 30)
         self.annexj = AnnexJCodec()
         self.mux = UDPMultiplexer(local_address, noBroadcast=True)
-        #end
+        # end
         # self.bip.add_peer(Address('10.166.1.72'))
-        #ADDED
+        # ADDED
 
         # bind the bottom layers
         bind(self.bip, self.annexj, self.mux.annexJ)
@@ -246,6 +269,12 @@ def main():
     # local_network = args.net1
     # vlan_address = Address(args.addr2)
     # vlan_network = args.net2
+
+    bank_to_out_queue = queue.Queue()
+    out_to_bank_queue = queue.PriorityQueue()
+
+    reg_reader = RegisterReader(out_to_bank_queue, bank_to_out_queue)
+
     local_address = Address('130.91.139.93')
     local_network = 0
     vlan_address = Address(5)
@@ -279,7 +308,7 @@ def main():
     #         segmentationSupported='noSegmentation',
     #         vendorIdentifier=15,
     #         )
-    #ADDED
+    # ADDED
     vlan_device = \
         LocalDeviceObject(
             objectName='laptopBehindNetwork',
@@ -296,7 +325,7 @@ def main():
             segmentationSupported='noSegmentation',
             vendorIdentifier=15,
         )
-    #ADDED
+    # ADDED
     _log.debug("    - vlan_device: %r", vlan_device)
 
     # make the application, add it to the network
@@ -307,7 +336,7 @@ def main():
     vlan.add_node(vlan_app2.vlan_node)
     _log.debug("    - vlan_app: %r", vlan_app)
 
-    #ADDED
+    # ADDED
     services_supported = vlan_app.get_services_supported()
 
     # let the device object know
@@ -317,14 +346,14 @@ def main():
 
     # let the device object know
     vlan_device2.protocolServicesSupported = services_supported.value
-    #ADDED
+    # ADDED
 
     # make a random value object
     # ravo = RandomAnalogValueObject(
     #     objectIdentifier=('analogValue', 1),
     #     objectName='Device%d/Random1' % (device_instance,),
     #     )
-    ravo = ModbusAnalogInputObject(
+    ravo = ModbusAnalogInputObject(device_instance, reg_reader,
         objectIdentifier=('analogInput', 1),
         objectName='Device%d/Modbus1' % (device_instance,),
     )
@@ -334,14 +363,13 @@ def main():
     vlan_app.add_object(ravo)
 
     # make a random value object
-    ravo = ModbusAnalogInputObject(
+    ravo = ModbusAnalogInputObject(device_instance2, reg_reader,
         objectIdentifier=('analogInput', 1),
         objectName='Device%d/Modbus1' % (device_instance2,),
     )
 
     # add it to the device
     vlan_app2.add_object(ravo)
-
 
     _log.debug("running")
 
@@ -353,5 +381,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-

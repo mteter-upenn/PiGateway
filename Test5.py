@@ -137,7 +137,7 @@ class ModbusAnalogInputObject(AnalogInputObject):
         AnalogInputObject.__init__(self, **kwargs)
 
     def set_present_value_RegisterReader(self, register_reader):
-        self._properties.get('presentValue').set_RegisterReader(register_reader)
+        self._properties.get('presentValue').set_register_reader(register_reader)
 
 
 register_object_type(ModbusAnalogInputObject)
@@ -229,7 +229,7 @@ class VLANApplication(Application, WhoIsIAmServices, ReadWritePropertyServices, 
     def add_object(self, obj):
         Application.add_object(self, obj)
         if obj.__class__.__name__ == 'ModbusAnalogInputObject':
-            obj.set_present_value_RegisterReader(self.register_reader)
+            obj.set_present_value_register_reader(self.register_reader)
 
     #ADDED
 

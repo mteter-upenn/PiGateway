@@ -1,0 +1,969 @@
+{
+  "deviceName":"VPL Electric Meter 1",
+  "deviceInstance":4000061,
+  "deviceDescription":"VPL 13.2kV Electric meter",
+  "deviceIP":"10.166.4.72",
+  "modbusId":1,
+  "mapName":"Eaton Power Xpert 4000",
+  "mapRev":"a",
+  "meterModelName":"Eaton Power Xpert 4000",
+  "modbusPort":502,
+  "holdingRegisters": {
+    "pollingTime":10000,
+    "groupConsecutive":"yes",
+    "groupGaps":"yes",
+    "wordOrder":"msw",
+    "registers": [
+      {
+        "objectName":"current_a",
+        "objectDescription":"Current for phase A",
+        "objectInstance":101,
+        "start":4611,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"current_b",
+        "objectDescription":"Current for phase B",
+        "objectInstance":102,
+        "start":4613,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"current_c",
+        "objectDescription":"Current for phase C",
+        "objectInstance":103,
+        "start":4615,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"current_average",
+        "objectDescription":"Average current",
+        "objectInstance":104,
+        "start":4621,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"current_ground",
+        "objectDescription":"Ground current",
+        "objectInstance":105,
+        "start":4617,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"current_neutral",
+        "objectDescription":"Neutral current",
+        "objectInstance":106,
+        "start":4619,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"voltage_LN_a",
+        "objectDescription":"Line-neutral voltage for phase A",
+        "objectInstance":108,
+        "start":4631,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"voltage_LN_b",
+        "objectDescription":"Line-neutral voltage for phase B",
+        "objectInstance":109,
+        "start":4633,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"voltage_LN_c",
+        "objectDescription":"Line-neutral voltage for phase C",
+        "objectInstance":110,
+        "start":4635,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"voltage_LN_average",
+        "objectDescription":"Line-neutral voltage",
+        "objectInstance":111,
+        "start":4637,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"voltage_LL_a-b",
+        "objectDescription":"Line-line voltage for phases A-B",
+        "objectInstance":112,
+        "start":4623,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"voltage_LL_b-c",
+        "objectDescription":"Line-line voltage for phases B-C",
+        "objectInstance":113,
+        "start":4625,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"voltage_LL_c-a",
+        "objectDescription":"Line-line voltage for phases C-A",
+        "objectInstance":114,
+        "start":4627,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"voltage_LL_average",
+        "objectDescription":"Line-line voltage",
+        "objectInstance":115,
+        "start":4629,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"voltage_NG",
+        "objectDescription":"Voltage from neutral to ground",
+        "objectInstance":116,
+        "start":4639,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"power_factor_a_displacement",
+        "objectDescription":"Displacement power factor for phase A",
+        "objectInstance":117,
+        "start":4685,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":15,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"power_factor_b_displacement",
+        "objectDescription":"Displacement power factor for phase B",
+        "objectInstance":118,
+        "start":4687,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":15,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"power_factor_c_displacement",
+        "objectDescription":"Displacement power factor for phase C",
+        "objectInstance":119,
+        "start":4689,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":15,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"power_factor_displacement",
+        "objectDescription":"Displacement power factor across all phases",
+        "objectInstance":120,
+        "start":4657,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":15,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"power_factor_a_apparent",
+        "objectDescription":"Apparent power factor for phase A",
+        "objectInstance":121,
+        "start":4691,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":15,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"power_factor_b_apparent",
+        "objectDescription":"Apparent power factor for phase B",
+        "objectInstance":122,
+        "start":4693,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":15,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"power_factor_c_apparent",
+        "objectDescription":"Apparent power factor for phase C",
+        "objectInstance":123,
+        "start":4695,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":15,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"power_factor_apparent",
+        "objectDescription":"Apparent power factor across all phases",
+        "objectInstance":124,
+        "start":4659,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":15,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"frequency",
+        "objectDescription":"Frequency",
+        "objectInstance":125,
+        "start":4661,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":27,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"real_power_a",
+        "objectDescription":"Real power for phase A",
+        "objectInstance":126,
+        "start":4667,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":48,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"real_power_b",
+        "objectDescription":"Real power for phase B",
+        "objectInstance":127,
+        "start":4669,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":48,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"real_power_c",
+        "objectDescription":"Real power for phase C",
+        "objectInstance":128,
+        "start":4671,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":48,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"real_power_total",
+        "objectDescription":"Total real power",
+        "objectInstance":129,
+        "start":4651,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":48,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"reactive_power_a",
+        "objectDescription":"Reactive power for phase A",
+        "objectInstance":130,
+        "start":4673,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":12,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"reactive_power_b",
+        "objectDescription":"Reactive power for phase B",
+        "objectInstance":131,
+        "start":4675,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":12,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"reactive_power_c",
+        "objectDescription":"Reactive power for phase C",
+        "objectInstance":132,
+        "start":4677,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":12,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"reactive_power_total",
+        "objectDescription":"Total reactive power",
+        "objectInstance":133,
+        "start":4653,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":12,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"apparent_power_a",
+        "objectDescription":"Apparent power for phase A",
+        "objectInstance":134,
+        "start":4679,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":9,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"apparent_power_b",
+        "objectDescription":"Apparent power for phase B",
+        "objectInstance":135,
+        "start":4681,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":9,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"apparent_power_c",
+        "objectDescription":"Apparent power for phase C",
+        "objectInstance":136,
+        "start":4683,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":9,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"apparent_power_total",
+        "objectDescription":"Total apparent power",
+        "objectInstance":137,
+        "start":4655,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":9,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"real_energy_delivered",
+        "objectDescription":"Real energy into meter",
+        "objectInstance":138,
+        "start":6305,
+        "format":"energy",
+        "poll":"yes",
+        "unitsId":19,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"real_energy_received",
+        "objectDescription":"Real energy out of meter",
+        "objectInstance":139,
+        "start":6309,
+        "format":"energy",
+        "poll":"yes",
+        "unitsId":19,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"real_energy_total",
+        "objectDescription":"Total real energy imported + exported",
+        "objectInstance":140,
+        "start":6313,
+        "format":"energy",
+        "poll":"yes",
+        "unitsId":19,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"reactive_energy_delivered",
+        "objectDescription":"Reactive energy into meter, leading",
+        "objectInstance":142,
+        "start":6317,
+        "format":"energy",
+        "poll":"yes",
+        "unitsId":243,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"reactive_energy_received",
+        "objectDescription":"Reactive energy out of meter, lagging",
+        "objectInstance":143,
+        "start":6321,
+        "format":"energy",
+        "poll":"yes",
+        "unitsId":243,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"reactive_energy_net",
+        "objectDescription":"Net reactive energy imported - exported",
+        "objectInstance":145,
+        "start":6325,
+        "format":"energy",
+        "poll":"yes",
+        "unitsId":243,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"apparent_energy_total",
+        "objectDescription":"Total apparent energy imported + exported",
+        "objectInstance":148,
+        "start":6329,
+        "format":"energy",
+        "poll":"yes",
+        "unitsId":240,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"phase_angle_current_a",
+        "objectDescription":"Phase angle of current for phase a",
+        "objectInstance":150,
+        "start":11454,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":14,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phase_angle_current_b",
+        "objectDescription":"Phase angle of current for phase b",
+        "objectInstance":151,
+        "start":11456,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":14,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phase_angle_current_c",
+        "objectDescription":"Phase angle of current for phase c",
+        "objectInstance":152,
+        "start":11458,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":14,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phase_angle_current_n",
+        "objectDescription":"Phase angle of current for neutral",
+        "objectInstance":153,
+        "start":11452,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":14,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phase_angle_voltage_a",
+        "objectDescription":"Phase angle of voltage for phase a",
+        "objectInstance":154,
+        "start":11460,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":14,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phase_angle_voltage_b",
+        "objectDescription":"Phase angle of voltage for phase b",
+        "objectInstance":155,
+        "start":11462,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":14,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phase_angle_voltage_c",
+        "objectDescription":"Phase angle of voltage for phase c",
+        "objectInstance":156,
+        "start":11464,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":14,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phase_angle_voltage_ab",
+        "objectDescription":"Phase angle of voltage for phase a-b",
+        "objectInstance":157,
+        "start":11466,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":14,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phase_angle_voltage_bc",
+        "objectDescription":"Phase angle of voltage for phase b-c",
+        "objectInstance":158,
+        "start":11468,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":14,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phase_angle_voltage_ca",
+        "objectDescription":"Phase angle of voltage for phase c-a",
+        "objectInstance":159,
+        "start":11470,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":14,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phasor_real_current_g",
+        "objectDescription":"Real component of current phasor for ground",
+        "objectInstance":164,
+        "start":11472,
+        "format":"float",
+        "poll":"no",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phasor_imag_current_g",
+        "objectDescription":"Imaginary component of current phasor for ground",
+        "objectInstance":165,
+        "start":11474,
+        "format":"float",
+        "poll":"no",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phasor_real_current_n",
+        "objectDescription":"Real component of current phasor for neutral",
+        "objectInstance":166,
+        "start":11476,
+        "format":"float",
+        "poll":"no",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phasor_imag_current_n",
+        "objectDescription":"Imaginary component of current phasor for neutral",
+        "objectInstance":167,
+        "start":11478,
+        "format":"float",
+        "poll":"no",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phasor_real_current_a",
+        "objectDescription":"Real component of current phasor for phase a",
+        "objectInstance":168,
+        "start":11480,
+        "format":"float",
+        "poll":"no",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phasor_imag_current_a",
+        "objectDescription":"Imaginary component of current phasor for phase a",
+        "objectInstance":169,
+        "start":11482,
+        "format":"float",
+        "poll":"no",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phasor_real_current_b",
+        "objectDescription":"Real component of current phasor for phase b",
+        "objectInstance":170,
+        "start":11484,
+        "format":"float",
+        "poll":"no",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phasor_imag_current_b",
+        "objectDescription":"Imaginary component of current phasor for phase b",
+        "objectInstance":171,
+        "start":11486,
+        "format":"float",
+        "poll":"no",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phasor_real_current_c",
+        "objectDescription":"Real component of current phasor for phase c",
+        "objectInstance":172,
+        "start":11488,
+        "format":"float",
+        "poll":"no",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phasor_imag_current_c",
+        "objectDescription":"Imaginary component of current phasor for phase c",
+        "objectInstance":173,
+        "start":11490,
+        "format":"float",
+        "poll":"no",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phasor_real_voltage_a",
+        "objectDescription":"Real component of voltage phasor for phase a",
+        "objectInstance":174,
+        "start":11492,
+        "format":"float",
+        "poll":"no",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phasor_imag_voltage_a",
+        "objectDescription":"Imaginary component of voltage phasor for phase a",
+        "objectInstance":175,
+        "start":11494,
+        "format":"float",
+        "poll":"no",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phasor_real_voltage_b",
+        "objectDescription":"Real component of voltage phasor for phase b",
+        "objectInstance":176,
+        "start":11496,
+        "format":"float",
+        "poll":"no",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phasor_imag_voltage_b",
+        "objectDescription":"Imaginary component of voltage phasor for phase b",
+        "objectInstance":177,
+        "start":11498,
+        "format":"float",
+        "poll":"no",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phasor_real_voltage_c",
+        "objectDescription":"Real component of voltage phasor for phase c",
+        "objectInstance":178,
+        "start":11500,
+        "format":"float",
+        "poll":"no",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phasor_imag_voltage_c",
+        "objectDescription":"Imaginary component of voltage phasor for phase c",
+        "objectInstance":179,
+        "start":11502,
+        "format":"float",
+        "poll":"no",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phasor_real_voltage_ab",
+        "objectDescription":"Real component of voltage phasor for phase a-b",
+        "objectInstance":180,
+        "start":11504,
+        "format":"float",
+        "poll":"no",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phasor_imag_voltage_ab",
+        "objectDescription":"Imaginary component of voltage phasor for phase a-b",
+        "objectInstance":181,
+        "start":11506,
+        "format":"float",
+        "poll":"no",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phasor_real_voltage_bc",
+        "objectDescription":"Real component of voltage phasor for phase b-c",
+        "objectInstance":182,
+        "start":11508,
+        "format":"float",
+        "poll":"no",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phasor_imag_voltage_bc",
+        "objectDescription":"Imaginary component of voltage phasor for phase b-c",
+        "objectInstance":183,
+        "start":11510,
+        "format":"float",
+        "poll":"no",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phasor_real_voltage_ca",
+        "objectDescription":"Real component of voltage phasor for phase c-a",
+        "objectInstance":184,
+        "start":11512,
+        "format":"float",
+        "poll":"no",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phasor_imag_voltage_ca",
+        "objectDescription":"Imaginary component of voltage phasor for phase c-a",
+        "objectInstance":185,
+        "start":11514,
+        "format":"float",
+        "poll":"no",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"k_factor_a",
+        "objectDescription":"K factor for phase a",
+        "objectInstance":193,
+        "start":11308,
+        "format":"float",
+        "poll":"no",
+        "unitsId":95,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"k_factor_b",
+        "objectDescription":"K factor for phase b",
+        "objectInstance":194,
+        "start":11310,
+        "format":"float",
+        "poll":"no",
+        "unitsId":95,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"k_factor_c",
+        "objectDescription":"K factor for phase c",
+        "objectInstance":195,
+        "start":11312,
+        "format":"float",
+        "poll":"no",
+        "unitsId":95,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"k_factor",
+        "objectDescription":"K-factor",
+        "objectInstance":196,
+        "start":4663,
+        "format":"float",
+        "poll":"no",
+        "unitsId":95,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"k_factor_sys_max",
+        "objectDescription":"Maximum K factor across phases",
+        "objectInstance":197,
+        "start":11314,
+        "format":"float",
+        "poll":"no",
+        "unitsId":95,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"crest_factor_a",
+        "objectDescription":"Crest factor for phase a",
+        "objectInstance":208,
+        "start":11268,
+        "format":"float",
+        "poll":"no",
+        "unitsId":95,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"crest_factor_b",
+        "objectDescription":"Crest factor for phase b",
+        "objectInstance":209,
+        "start":11270,
+        "format":"float",
+        "poll":"no",
+        "unitsId":95,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"crest_factor_c",
+        "objectDescription":"Crest factor for phase c",
+        "objectInstance":210,
+        "start":11272,
+        "format":"float",
+        "poll":"no",
+        "unitsId":95,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"crest_factor_sys_max",
+        "objectDescription":"Maximum crest factor across phases",
+        "objectInstance":211,
+        "start":11274,
+        "format":"float",
+        "poll":"no",
+        "unitsId":95,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"thd_current_mag_n",
+        "objectDescription":"Magnitude of total harmonic distortion for neutral current",
+        "objectInstance":212,
+        "start":11394,
+        "format":"float",
+        "poll":"no",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"thd_current_mag_a",
+        "objectDescription":"Magnitude of total harmonic distortion for current on phase a",
+        "objectInstance":213,
+        "start":11402,
+        "format":"float",
+        "poll":"no",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"thd_current_mag_b",
+        "objectDescription":"Magnitude of total harmonic distortion for current on phase b",
+        "objectInstance":214,
+        "start":11408,
+        "format":"float",
+        "poll":"no",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"thd_current_mag_c",
+        "objectDescription":"Magnitude of total harmonic distortion for current on phase c",
+        "objectInstance":215,
+        "start":11414,
+        "format":"float",
+        "poll":"no",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"thd_voltage_mag_a",
+        "objectDescription":"Magnitude of total harmonic distortion for voltage on phase a",
+        "objectInstance":216,
+        "start":11406,
+        "format":"float",
+        "poll":"no",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"thd_voltage_mag_b",
+        "objectDescription":"Magnitude of total harmonic distortion for voltage on phase b",
+        "objectInstance":217,
+        "start":11412,
+        "format":"float",
+        "poll":"no",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"thd_voltage_mag_c",
+        "objectDescription":"Magnitude of total harmonic distortion for voltage on phase c",
+        "objectInstance":218,
+        "start":11418,
+        "format":"float",
+        "poll":"no",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"thd_voltage_mag_ab",
+        "objectDescription":"Magnitude of total harmonic distortion for voltage on phase a-b",
+        "objectInstance":219,
+        "start":11404,
+        "format":"float",
+        "poll":"no",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"thd_voltage_mag_bc",
+        "objectDescription":"Magnitude of total harmonic distortion for voltage on phase b-c",
+        "objectInstance":220,
+        "start":11410,
+        "format":"float",
+        "poll":"no",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"thd_voltage_mag_ca",
+        "objectDescription":"Magnitude of total harmonic distortion for voltage on phase c-a",
+        "objectInstance":221,
+        "start":11416,
+        "format":"float",
+        "poll":"no",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"thd_factor",
+        "objectDescription":"Transformer harmonic derating factor- sqrt2/crest-factor",
+        "objectInstance":249,
+        "start":4665,
+        "format":"float",
+        "poll":"no",
+        "unitsId":95,
+        "pointScale":[0,1,0,1]
+      }
+    ]
+  }
+}

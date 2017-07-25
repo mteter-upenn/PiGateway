@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/PiGateway.iml" filepath="$PROJECT_DIR$/.idea/PiGateway.iml" />
+      <module fileurl="file://$USER_HOME$/.local/lib/python3.5/site-packages/mbpy/.idea/mbpy.iml" filepath="$USER_HOME$/.local/lib/python3.5/site-packages/mbpy/.idea/mbpy.iml" />
     </modules>
   </component>
 </project>
