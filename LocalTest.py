@@ -13,7 +13,7 @@ import os
 import random
 
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
-from bacpypes.consolelogging import ConfigArgumentParser
+# from bacpypes.consolelogging import ConfigArgumentParser
 
 from bacpypes.core import run
 
@@ -23,6 +23,10 @@ from bacpypes.errors import ExecutionError
 
 from bacpypes.app import BIPSimpleApplication
 from bacpypes.service.device import LocalDeviceObject
+
+from modbusregisters import RegisterBankThread, RegisterReader
+import modbusbacnetclasses
+import queue
 
 # some debugging
 _debug = 0

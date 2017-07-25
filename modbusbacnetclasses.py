@@ -1,0 +1,146 @@
+from bacpypes.debugging import bacpypes_debugging, ModuleLogger
+
+from bacpypes.service.device import LocalDeviceObject
+from bacpypes.constructeddata import ArrayOf
+from bacpypes.primitivedata import Real, Integer, CharacterString
+from bacpypes.object import Property, register_object_type, AnalogInputObject, ReadableProperty  # , AnalogValueObject
+
+from bacpypes.errors import ExecutionError
+
+from bacpypes.basetypes import PropertyIdentifier
+
+_modbus_bacnet_debug = 0
+_modbus_bacnet_log = ModuleLogger(globals())
+
+PropertyIdentifier.enumerations['modbusFunction'] = 3000000
+PropertyIdentifier.enumerations['registerStart'] = 3000001
+PropertyIdentifier.enumerations['numberOfRegisters'] = 3000002
+PropertyIdentifier.enumerations['registerFormat'] = 3000003
+PropertyIdentifier.enumerations['wordOrder'] = 3000004
+PropertyIdentifier.enumerations['registerScaling'] = 3000005
+PropertyIdentifier.enumerations['deviceIp'] = 3000006
+PropertyIdentifier.enumerations['modbusId'] = 3000007
+PropertyIdentifier.enumerations['modbusMapName'] = 3000008
+PropertyIdentifier.enumerations['modbusMapRev'] = 3000009
+PropertyIdentifier.enumerations['deviceModelName'] = 3000010
+PropertyIdentifier.enumerations['modbusPort'] = 3000011
+
+
+# @bacpypes_debugging
+# class RegisterScalingProperty(Property):
+#     def __init__(self, identifier):
+#         if _debug: RegisterScalingProperty._debug("__init__ %r", identifier)
+#         Property.__init__(self, identifier, Real, default=None, optional=False, mutable=False)
+#         self._is_scaled()
+
+@bacpypes_debugging
+class ModbusValueProperty(Property):
+
+    def __init__(self, identifier):
+        if _modbus_bacnet_debug: ModbusValueProperty._debug("__init__ %r", identifier)
+        Property.__init__(self, identifier, Real, default=None, optional=True, mutable=False)
+
+    def ReadProperty(self, obj, array_index=None):
+        if _modbus_bacnet_debug: ModbusValueProperty._debug("ReadProperty %r arrayIndex=%r", obj, array_index)
+
+        # access an array
+        if array_index is not None:
+            raise ExecutionError(errorClass='property', errorCode='propertyIsNotAnArray')
+
+        dev_inst = obj._parent_device_inst
+        # mb_func = obj.ReadProperty('modbusFunction')
+        # register_start = obj.ReadProperty('registerStart')
+        # num_regs = obj.ReadProperty('numberOfRegisters')
+        # reg_frmt = obj.ReadProperty('registerFormat')
+        # word_order = obj.ReadProperty('wordOrder')
+        # register_reader = obj._register_reader
+        try:
+            mb_func = obj._values['modbusFunction']
+            register_start = obj._values['registerStart']
+            num_regs = obj._values['numberOfRegisters']
+            reg_frmt = obj._values['registerFormat']
+            word_order = obj._values['wordOrder']
+            register_reader = obj._register_reader
+            is_scaled = obj._is_scaled
+            reg_scaling = obj._values['registerScaling']
+        except KeyError:
+            return 0.0
+
+        # get_register_format(self, dev_instance, mb_func, register, num_regs, reg_format, word_order,
+                            # queue_timeout=100.0)
+
+        value, reliability = register_reader.get_register_format(dev_inst, mb_func, register_start, num_regs, reg_frmt,
+                                                                 word_order)
+        # return a random value
+        # value = random.random() * 100.0
+        if _modbus_bacnet_debug: ModbusValueProperty._debug("    - value: %r", value)
+
+        # print('ReadProperty from property', obj.ReadProperty('objectIdentifier'), dev_inst)
+        # print('obj parent is', self.object_parent)
+        if not reliability:
+            # need to throw flag in reliabilty and statusFlags
+            pass
+        return value
+
+    def WriteProperty(self, obj, value, array_index=None, priority=None, direct=False):
+        if _modbus_bacnet_debug: ModbusValueProperty._debug("WriteProperty %r %r arrayIndex=%r priority=%r direct=%r", obj, value,
+                                                            array_index, priority, direct)
+        raise ExecutionError(errorClass='property', errorCode='writeAccessDenied')
+
+    # def set_obj_parent(self, obj_id):
+    #     self.object_parent = obj_id
+    #     print('parent set:', obj_id)
+
+# PropertyIdentifier.enumerations['modbusFunction'] = 3000000
+# PropertyIdentifier.enumerations['registerStart'] = 3000001
+# PropertyIdentifier.enumerations['numberOfRegisters'] = 3000002
+# PropertyIdentifier.enumerations['registerFormat'] = 3000003
+# PropertyIdentifier.enumerations['wordOrder'] = 3000004
+# PropertyIdentifier.enumerations['registerScaling'] = 3000005
+# PropertyIdentifier.enumerations['deviceIp'] = 3000006
+# PropertyIdentifier.enumerations['modbusId'] = 3000007
+# PropertyIdentifier.enumerations['modbusMapName'] = 3000008
+# PropertyIdentifier.enumerations['modbusMapRev'] = 3000009
+# PropertyIdentifier.enumerations['deviceModelName'] = 3000010
+# PropertyIdentifier.enumerations['modbusPort'] = 3000011
+@bacpypes_debugging
+class ModbusAnalogInputObject(AnalogInputObject):
+    properties = [
+        ModbusValueProperty('presentValue'),
+        ReadableProperty('modbusFunction', Integer),
+        ReadableProperty('registerStart', Integer),
+        ReadableProperty('numberOfRegisters', Integer),
+        ReadableProperty('registerFormat', CharacterString),
+        ReadableProperty('wordOrder', CharacterString),
+        ReadableProperty('registerScaling', ArrayOf(Real))
+    ]
+
+    def __init__(self, parent_device_inst, register_reader, **kwargs):
+        if _modbus_bacnet_debug: ModbusAnalogInputObject._debug("__init__ %r", kwargs)
+        AnalogInputObject.__init__(self, **kwargs)
+        self._register_reader = register_reader
+        self._parent_device_inst = parent_device_inst
+        reg_scaling = self.ReadProperty('registerScaling')
+        if reg_scaling == [0, 1, 0, 1]:
+            self._is_scaled = True
+        else:
+            self._is_scaled = False
+
+    # def ReadProperty(self, propid, arrayIndex=None):
+    #     print('object overwrite ReadProperty')
+    #     if propid=='presentValue':
+    #         prop = self._properties.get(propid)
+    #         if not prop:
+    #             raise PropertyError(propid)
+    #
+    #         # defer to the property to get the value
+    #         return prop.ReadProperty(self, arrayIndex)
+    #     else:
+    #         return AnalogInputObject.ReadProperty(self, propid, arrayIndex=arrayIndex)
+
+register_object_type(ModbusAnalogInputObject)
+
+
+@bacpypes_debugging
+class ModbusLocalDevice(LocalDeviceObject):
+    pass
