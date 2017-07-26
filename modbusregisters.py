@@ -77,121 +77,126 @@ class RegisterBankThread(threading.Thread):
         # self.register_clusters[(4000031, 0)] = [ModbusPollThread(self.rx_queue, 4000031, '10.166.2.132', 10, 3, 1, 10,
         #                                                          1000, 502), 1500491695.951605, 30000]
 
-    def add_instance(self, map_dict, mb_timeout=2000, mb_port=502):
-        mb_func = 3
-        func_key = 'holdingRegisters'
+    def add_instance(self, map_dict):  # , mb_timeout=2000, mb_port=502):
+        # mb_func = 3
+        # func_key = 'holdingRegisters'
         func_regs = {}
         bcnt_inst = map_dict['deviceInstance']
         if bcnt_inst in self._register_bank:  # bacnet instance already exists!
-            return
+            return False
         clstr = 0
         mb_ip = map_dict['deviceIP']
         mb_id = map_dict['modbusId']
+        mb_port = map_dict['modbusPort']
+        val_types = {'holdingRegisters': 3, 'inputRegisters': 4, 'coilBits': 1, 'inputBits': 2}
 
-        for key, value in map_dict.items():
-            if key in ('holdingRegisters', 'inputRegisters', 'coilBits', 'inputBits'):
-                if key == 'holdingRegisters':
-                    mb_func = 3
-                    func_key = 'holdingRegisters'
-                elif key == 'inputRegisters':
-                    mb_func = 4
-                    func_key = 'inputRegisters'
-                elif key == 'coilBits':
-                    mb_func = 1
-                    func_key = 'coilBits'
-                elif key == 'inputBits':
-                    mb_func = 2
-                    func_key = 'inputBits'
+        for val_type, mb_func in val_types.items():
+            if val_type not in map_dict:  # ('holdingRegisters', 'inputRegisters', 'coilBits', 'inputBits'):
+                continue
+                # if key == 'holdingRegisters':
+                #     mb_func = 3
+                #     func_key = 'holdingRegisters'
+                # elif key == 'inputRegisters':
+                #     mb_func = 4
+                #     func_key = 'inputRegisters'
+                # elif key == 'coilBits':
+                #     mb_func = 1
+                #     func_key = 'coilBits'
+                # elif key == 'inputBits':
+                #     mb_func = 2
+                #     func_key = 'inputBits'
 
-                mb_polling_time = map_dict[func_key]['pollingTime']
-                mb_grp_cons = True if map_dict[func_key]['groupConsecutive'] == 'yes' else False
-                mb_grp_gaps = True if map_dict[func_key]['groupGaps'] == 'yes' else False
+            mb_polling_time = map_dict[val_type]['pollingTime']
+            mb_request_timeout = map_dict[val_type]['requestTimeout']
+            mb_grp_cons = True if map_dict[val_type]['groupConsecutive'] == 'yes' else False
+            mb_grp_gaps = True if map_dict[val_type]['groupGaps'] == 'yes' else False
 
-                raw_regs = {}
-                raw_regs_list = []
-                for register in map_dict[func_key]['registers']:
-                    # don't bother storing points we won't look at
-                    if register['poll'] == 'no':
-                        continue
+            raw_regs = {}
+            raw_regs_list = []
+            for register in map_dict[val_type]['registers']:
+                # don't bother storing points we won't look at
+                if register['poll'] == 'no':
+                    continue
 
-                    start_reg = register['start']
+                start_reg = register['start']
+                num_regs = 1
+
+                if register['format'] in one_register_formats:
                     num_regs = 1
+                elif register['format'] in two_register_formats:
+                    num_regs = 2
+                elif register['format'] in three_register_formats:
+                    num_regs = 3
+                elif register['format'] in four_register_formats:
+                    num_regs = 4
 
-                    if register['format'] in one_register_formats:
-                        num_regs = 1
-                    elif register['format'] in two_register_formats:
-                        num_regs = 2
-                    elif register['format'] in three_register_formats:
-                        num_regs = 3
-                    elif register['format'] in four_register_formats:
-                        num_regs = 4
+                last_reg = start_reg + num_regs - 1
+                for ii in range(start_reg, start_reg + num_regs):
+                    raw_regs[ii] = [0, 0.0]
+                    raw_regs_list.append([ii, start_reg, last_reg])
 
-                    last_reg = start_reg + num_regs - 1
-                    for ii in range(start_reg, start_reg + num_regs):
-                        raw_regs[ii] = [0, 0.0]
-                        raw_regs_list.append([ii, start_reg, last_reg])
+            # set up dicts for self.register_bank{}
+            func_regs[mb_func] = [map_dict[val_type]['pollingTime'], raw_regs]
 
-                # set up dicts for self.register_bank{}
-                func_regs[mb_func] = [map_dict[func_key]['pollingTime'], raw_regs]
+            raw_regs_list.sort()
 
-                raw_regs_list.sort()
+            clstr_reg_start = raw_regs_list[0][0]
+            num_map_regs = len(raw_regs_list)
 
-                clstr_reg_start = raw_regs_list[0][0]
-                num_map_regs = len(raw_regs_list)
+            if mb_grp_cons and mb_grp_gaps:  # clusters should span multiple points and registers we won't record
+                last_iter_reg = raw_regs_list[0][2]
+                for ii in range(num_map_regs):
+                    if raw_regs_list[ii][2] - clstr_reg_start > 125 or ii == num_map_regs - 1:
+                        # ModbusPollThread(self.rx_queue, 4000031, '10.166.2.132', 10, 3, 1, 10, 1000, 502)
+                        mb_poll_thread = ModbusPollThread(self.rx_queue, bcnt_inst, mb_ip, mb_id, mb_func,
+                                                          clstr_reg_start, last_iter_reg - clstr_reg_start
+                                                          + 1, mb_request_timeout, mb_port)
+                        self._register_clusters[(bcnt_inst, clstr)] = [mb_poll_thread, 0.0, mb_polling_time]
 
-                if mb_grp_cons and mb_grp_gaps:  # clusters should span multiple points and registers we won't record
-                    last_iter_reg = raw_regs_list[0][2]
-                    for ii in range(num_map_regs):
-                        if raw_regs_list[ii][2] - clstr_reg_start > 125 or ii == num_map_regs - 1:
-                            # ModbusPollThread(self.rx_queue, 4000031, '10.166.2.132', 10, 3, 1, 10, 1000, 502)
-                            mb_poll_thread = ModbusPollThread(self.rx_queue, bcnt_inst, mb_ip, mb_id, mb_func,
-                                                              clstr_reg_start, last_iter_reg - clstr_reg_start
-                                                              + 1, mb_timeout, mb_port)
-                            self._register_clusters[(bcnt_inst, clstr)] = [mb_poll_thread, 0.0, mb_polling_time]
+                        # print('\nclstr:', clstr)
+                        # print('start', clstr_reg_start)
+                        # print('regs: ', last_iter_reg - clstr_reg_start + 1)
+                        # print('end:', last_iter_reg)
 
-                            # print('\nclstr:', clstr)
-                            # print('start', clstr_reg_start)
-                            # print('regs: ', last_iter_reg - clstr_reg_start + 1)
-                            # print('end:', last_iter_reg)
+                        clstr += 1
+                        # if ii < num_map_regs - 1:
+                        clstr_reg_start = raw_regs_list[ii][0]
 
-                            clstr += 1
-                            # if ii < num_map_regs - 1:
-                            clstr_reg_start = raw_regs_list[ii][0]
+                    last_iter_reg = raw_regs_list[ii][2]
+            elif mb_grp_cons:
+                last_iter_reg = raw_regs_list[0][2]
+                for ii in range(num_map_regs):
+                    if raw_regs_list[ii][0] - raw_regs_list[ii - 1][0] > 1 or ii == num_map_regs - 1 \
+                            or raw_regs_list[ii][2] - clstr_reg_start > 124:
+                        mb_poll_thread = ModbusPollThread(self.rx_queue, bcnt_inst, mb_ip, mb_id, mb_func,
+                                                          clstr_reg_start, last_iter_reg - clstr_reg_start
+                                                          + 1, mb_request_timeout, mb_port)
+                        self._register_clusters[(bcnt_inst, clstr)] = [mb_poll_thread, 0.0, mb_polling_time]
 
-                        last_iter_reg = raw_regs_list[ii][2]
-                elif mb_grp_cons:
-                    last_iter_reg = raw_regs_list[0][2]
-                    for ii in range(num_map_regs):
-                        if raw_regs_list[ii][0] - raw_regs_list[ii - 1][0] > 1 or ii == num_map_regs - 1 \
-                                or raw_regs_list[ii][2] - clstr_reg_start > 124:
-                            mb_poll_thread = ModbusPollThread(self.rx_queue, bcnt_inst, mb_ip, mb_id, mb_func,
-                                                              clstr_reg_start, last_iter_reg - clstr_reg_start
-                                                              + 1, mb_timeout, mb_port)
-                            self._register_clusters[(bcnt_inst, clstr)] = [mb_poll_thread, 0.0, mb_polling_time]
+                        # print('\nclstr:', clstr)
+                        # print('start', clstr_reg_start)
+                        # print('regs: ', last_iter_reg - clstr_reg_start + 1)
+                        # print('end:', last_iter_reg)
 
-                            # print('\nclstr:', clstr)
-                            # print('start', clstr_reg_start)
-                            # print('regs: ', last_iter_reg - clstr_reg_start + 1)
-                            # print('end:', last_iter_reg)
+                        clstr += 1
+                        # if ii < num_map_regs - 1:
+                        clstr_reg_start = raw_regs_list[ii][0]
 
-                            clstr += 1
-                            # if ii < num_map_regs - 1:
-                            clstr_reg_start = raw_regs_list[ii][0]
+                    last_iter_reg = raw_regs_list[ii][2]
+            else:
+                clstr_reg_start = raw_regs_list[-1][1]
+                for ii in range(num_map_regs):
+                    if raw_regs_list[ii][1] != clstr_reg_start:
+                        mb_poll_thread = ModbusPollThread(self.rx_queue, bcnt_inst, mb_ip, mb_id, mb_func,
+                                                          raw_regs_list[ii][1], raw_regs_list[ii][2] -
+                                                          raw_regs_list[ii][1] + 1, mb_request_timeout, mb_port)
+                        self._register_clusters[(bcnt_inst, clstr)] = [mb_poll_thread, 0.0, mb_polling_time]
 
-                        last_iter_reg = raw_regs_list[ii][2]
-                else:
-                    clstr_reg_start = raw_regs_list[-1][1]
-                    for ii in range(num_map_regs):
-                        if raw_regs_list[ii][1] != clstr_reg_start:
-                            mb_poll_thread = ModbusPollThread(self.rx_queue, bcnt_inst, mb_ip, mb_id, mb_func,
-                                                              raw_regs_list[ii][1], raw_regs_list[ii][2] -
-                                                              raw_regs_list[ii][1] + 1, mb_timeout, mb_port)
-                            self._register_clusters[(bcnt_inst, clstr)] = [mb_poll_thread, 0.0, mb_polling_time]
-
-                            clstr += 1
-                            clstr_reg_start = raw_regs_list[ii][1]
+                        clstr += 1
+                        clstr_reg_start = raw_regs_list[ii][1]
 
         self._register_bank[bcnt_inst] = func_regs
+        return True
 
     def run(self):
         for reg_clstr, clstr_val in self._register_clusters.items():

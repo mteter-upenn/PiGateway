@@ -10,6 +10,7 @@
   "modbusPort":502,
   "holdingRegisters": {
     "pollingTime":10000,
+    "requestTimeout":1000,
     "groupConsecutive":"yes",
     "groupGaps":"yes",
     "wordOrder":"lsw",

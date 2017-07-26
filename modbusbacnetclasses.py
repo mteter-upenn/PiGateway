@@ -9,8 +9,8 @@ from bacpypes.errors import ExecutionError
 
 from bacpypes.basetypes import PropertyIdentifier
 
-_modbus_bacnet_debug = 0
-_modbus_bacnet_log = ModuleLogger(globals())
+_debug = 0
+_log = ModuleLogger(globals())
 
 PropertyIdentifier.enumerations['modbusFunction'] = 3000000
 PropertyIdentifier.enumerations['registerStart'] = 3000001
@@ -37,11 +37,11 @@ PropertyIdentifier.enumerations['modbusPort'] = 3000011
 class ModbusValueProperty(Property):
 
     def __init__(self, identifier):
-        if _modbus_bacnet_debug: ModbusValueProperty._debug("__init__ %r", identifier)
+        if _debug: ModbusValueProperty._debug("__init__ %r", identifier)
         Property.__init__(self, identifier, Real, default=None, optional=True, mutable=False)
 
     def ReadProperty(self, obj, array_index=None):
-        if _modbus_bacnet_debug: ModbusValueProperty._debug("ReadProperty %r arrayIndex=%r", obj, array_index)
+        if _debug: ModbusValueProperty._debug("ReadProperty %r arrayIndex=%r", obj, array_index)
 
         # access an array
         if array_index is not None:
@@ -66,14 +66,14 @@ class ModbusValueProperty(Property):
         except KeyError:
             return 0.0
 
-        # get_register_format(self, dev_instance, mb_func, register, num_regs, reg_format, word_order,
-                            # queue_timeout=100.0)
-
-        value, reliability = register_reader.get_register_format(dev_inst, mb_func, register_start, num_regs, reg_frmt,
-                                                                 word_order)
+        # return value from modbus register bank
+        # value, reliability = register_reader.get_register_format(dev_inst, mb_func, register_start, num_regs, reg_frmt,
+        #                                                          word_order)
+        value = register_start
+        reliability = True
         # return a random value
         # value = random.random() * 100.0
-        if _modbus_bacnet_debug: ModbusValueProperty._debug("    - value: %r", value)
+        if _debug: ModbusValueProperty._debug("    - value: %r", value)
 
         # print('ReadProperty from property', obj.ReadProperty('objectIdentifier'), dev_inst)
         # print('obj parent is', self.object_parent)
@@ -83,8 +83,8 @@ class ModbusValueProperty(Property):
         return value
 
     def WriteProperty(self, obj, value, array_index=None, priority=None, direct=False):
-        if _modbus_bacnet_debug: ModbusValueProperty._debug("WriteProperty %r %r arrayIndex=%r priority=%r direct=%r", obj, value,
-                                                            array_index, priority, direct)
+        if _debug: ModbusValueProperty._debug("WriteProperty %r %r arrayIndex=%r priority=%r direct=%r", obj, value,
+                                              array_index, priority, direct)
         raise ExecutionError(errorClass='property', errorCode='writeAccessDenied')
 
     # def set_obj_parent(self, obj_id):
@@ -116,7 +116,7 @@ class ModbusAnalogInputObject(AnalogInputObject):
     ]
 
     def __init__(self, parent_device_inst, register_reader, **kwargs):
-        if _modbus_bacnet_debug: ModbusAnalogInputObject._debug("__init__ %r", kwargs)
+        if _debug: ModbusAnalogInputObject._debug("__init__ %r", kwargs)
         AnalogInputObject.__init__(self, **kwargs)
         self._register_reader = register_reader
         self._parent_device_inst = parent_device_inst
@@ -143,4 +143,12 @@ register_object_type(ModbusAnalogInputObject)
 
 @bacpypes_debugging
 class ModbusLocalDevice(LocalDeviceObject):
-    pass
+    properties = [
+        ReadableProperty('deviceIp', CharacterString),
+        ReadableProperty('modbusId', Integer),
+        ReadableProperty('modbusMapName', CharacterString),
+        ReadableProperty('modbusMapRev', CharacterString),
+        ReadableProperty('deviceModelName', CharacterString),
+        ReadableProperty('modbusPort', Integer),
+        # ReadableProperty('wordOrder', CharacterString)
+    ]
