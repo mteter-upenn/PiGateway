@@ -35,6 +35,7 @@ import queue
 _debug = 0
 _log = ModuleLogger(globals())
 
+
 #
 #   __main__
 #
@@ -46,8 +47,8 @@ def main():
     # if _debug: _log.debug("initialization")
     # if _debug: _log.debug("    - args: %r", args)
 
-    object_name = 'LinuxLaptop'
-    object_id = 2459990
+    # object_name = 'LinuxLaptop'
+    # object_id = 2459990
     max_apdu_len = 1024
     segmentation_support = 'segmentedBoth'
     vendor_id = 15
