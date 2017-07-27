@@ -24,15 +24,16 @@ from bacpypes.core import run
 from bacpypes.app import BIPSimpleApplication
 # from bacpypes.service.device import LocalDeviceObject
 
-from modbusregisters import RegisterBankThread, RegisterReader
-# import modbusbacnetclasses
-from modbusbacnetclasses import ModbusLocalDevice, ModbusAnalogInputObject
+import modbusregisters
+# from modbusregisters import RegisterBankThread, RegisterReader
+import modbusbacnetclasses
+# from modbusbacnetclasses import ModbusLocalDevice, ModbusAnalogInputObject
+# from modbusbacnetclasses import *
 import queue
 
 # some debugging
 _debug = 0
 _log = ModuleLogger(globals())
-
 
 #
 #   __main__
@@ -55,14 +56,14 @@ def main():
     bank_to_out_queue = queue.Queue()
     out_to_bank_queue = queue.PriorityQueue()
 
-    reg_reader = RegisterReader(out_to_bank_queue, bank_to_out_queue)
-    reg_bank = RegisterBankThread(bank_to_out_queue, out_to_bank_queue)
+    reg_reader = modbusregisters.RegisterReader(out_to_bank_queue, bank_to_out_queue)
+    reg_bank = modbusregisters.RegisterBankThread(bank_to_out_queue, out_to_bank_queue)
 
     dev_list = []
     app_list = []
 
     for fn in os.listdir(os.getcwd() + '/DeviceList'):
-        if fn.endswith('.json') and fn.startswith('DGL'):
+        if fn.endswith('.json') and fn.startswith('DRL_lar'):
             print(os.getcwd() + '/DeviceList/' + fn)
             json_raw_str = open(os.getcwd() + '/DeviceList/' + fn, 'r')
             map_dict = json.load(json_raw_str)
@@ -90,9 +91,10 @@ def main():
                 dev_meter_model = map_dict['meterModelName']
                 dev_mb_port = map_dict['modbusPort']
 
-                dev_list.append(ModbusLocalDevice(
+                dev_list.append(modbusbacnetclasses.ModbusLocalDevice(
                     objectName=dev_name,
                     objectIdentifier=('device', dev_inst),
+                    description=dev_desc,
                     maxApduLengthAccepted=max_apdu_len,
                     segmentationSupported=segmentation_support,
                     vendorIdentifier=vendor_id,
@@ -112,58 +114,114 @@ def main():
                 val_types = {'holdingRegisters': 3, 'inputRegisters': 4, 'coilBits': 1, 'inputBits': 2}
 
                 # create objects for device
+                for val_type, mb_func in val_types.items():
+                    if val_type not in map_dict or val_type not in ['holdingRegisters', 'inputRegisters']:
+                        continue
 
+                    mb_dev_wo = map_dict[val_type]['wordOrder']
+
+                    for register in map_dict[val_type]['registers']:
+                        # "objectName": "heat_flow_steam",
+                        # "objectDescription": "Instantaneous heat flow of steam",
+                        # "objectInstance": 1,
+                        # "start": 1,
+                        # "format": "float",
+                        # "poll": "yes",
+                        # "unitsId": 157,
+                        # "pointScale": [0, 1, 0, 1]
+
+                        if register['poll'] == 'no':
+                            continue
+
+                        obj_name = register['objectName']
+                        obj_description = register['objectDescription']
+                        obj_inst = register['objectInstance']
+                        obj_reg_start = register['start']
+                        obj_reg_format = register['format']
+                        if obj_reg_format in modbusregisters.one_register_formats:
+                            obj_num_regs = 1
+                        elif obj_reg_format in modbusregisters.two_register_formats:
+                            obj_num_regs = 2
+                        elif obj_reg_format in modbusregisters.three_register_formats:
+                            obj_num_regs = 3
+                        elif obj_reg_format in modbusregisters.four_register_formats:
+                            obj_num_regs = 4
+                        else:
+                            continue
+                        obj_units_id = register['unitsId']
+                        obj_pt_scale = register['pointScale']
+
+                        ravo = modbusbacnetclasses.ModbusAnalogInputObject(
+                            parent_device_inst=dev_inst,
+                            register_reader=reg_reader,
+                            objectIdentifier=('analogInput', obj_inst),
+                            objectName=obj_name,
+                            description=obj_description,
+                            modbusFunction=mb_func,
+                            registerStart=obj_reg_start,
+                            numberOfRegisters=obj_num_regs,
+                            registerFormat=obj_reg_format,
+                            wordOrder=mb_dev_wo,
+                            registerScaling=obj_pt_scale,
+                            units=obj_units_id,
+                        )
+                        # _log.debug("    - ravo: %r", ravo)
+                        app_list[-1].add_object(ravo)
+
+
+    # # this_device = modbusbacnetclasses.ModbusLocalDevice(
     # this_device = modbusbacnetclasses.ModbusLocalDevice(
-    this_device = ModbusLocalDevice(
-        objectName=object_name,
-        objectIdentifier=('device', object_id),
-        maxApduLengthAccepted=max_apdu_len,
-        segmentationSupported=segmentation_support,
-        vendorIdentifier=vendor_id,
-        deviceIp='10.166.2.132',
-        modbusId=10,
-        modbusMapName='KEP Steam',
-        modbusMapRev='a',
-        deviceModelName='KEP Steam',
-        modbusPort=502,
-        # wordOrder='lsw',
-    )
+    #     objectName=object_name,
+    #     objectIdentifier=('device', object_id),
+    #     maxApduLengthAccepted=max_apdu_len,
+    #     segmentationSupported=segmentation_support,
+    #     vendorIdentifier=vendor_id,
+    #     deviceIp='10.166.2.132',
+    #     modbusId=10,
+    #     modbusMapName='KEP Steam',
+    #     modbusMapRev='a',
+    #     deviceModelName='KEP Steam',
+    #     modbusPort=502,
+    #     # wordOrder='lsw',
+    # )
+    #
+    # # make a sample application
+    # this_application = BIPSimpleApplication(this_device, ip_address)
+    #
+    # # get the services supported
+    # services_supported = this_application.get_services_supported()
+    # if _debug: _log.debug("    - services_supported: %r", services_supported)
+    #
+    # # let the device object know
+    # this_device.protocolServicesSupported = services_supported.value
 
-    # make a sample application
-    this_application = BIPSimpleApplication(this_device, ip_address)
+    # # make some random input objects
+    # for i in range(1, 10+1):
+    #     # ravo = RandomAnalogValueObject(
+    #     #     objectIdentifier=('analogValue', i),
+    #     #     objectName='Random-%d' % (i,),
+    #     #     )
+    #
+    #     # ravo = modbusbacnetclasses.ModbusAnalogInputObject(
+    #     ravo = modbusbacnetclasses.ModbusAnalogInputObject(
+    #         parent_device_inst=object_id,
+    #         register_reader=None,
+    #         objectIdentifier=('analogInput', i),
+    #         objectName='ModbusRandom-%d' % (i,),
+    #         modbusFunction=3,
+    #         registerStart=i,
+    #         numberOfRegisters=2,
+    #         registerFormat='float',
+    #         wordOrder='lsw',
+    #         registerScaling=[0, 1, 0, 1],
+    #     )
+    #     _log.debug("    - ravo: %r", ravo)
+    #     this_application.add_object(ravo)
+    #
+    # # make sure they are all there
+    # _log.debug("    - object list: %r", this_device.objectList)
 
-    # get the services supported
-    services_supported = this_application.get_services_supported()
-    if _debug: _log.debug("    - services_supported: %r", services_supported)
-
-    # let the device object know
-    this_device.protocolServicesSupported = services_supported.value
-
-    # make some random input objects
-    for i in range(1, 10+1):
-        # ravo = RandomAnalogValueObject(
-        #     objectIdentifier=('analogValue', i),
-        #     objectName='Random-%d' % (i,),
-        #     )
-
-        # ravo = modbusbacnetclasses.ModbusAnalogInputObject(
-        ravo = ModbusAnalogInputObject(
-            parent_device_inst=object_id,
-            register_reader=None,
-            objectIdentifier=('analogInput', i),
-            objectName='ModbusRandom-%d' % (i,),
-            modbusFunction=3,
-            registerStart=i,
-            numberOfRegisters=2,
-            registerFormat='float',
-            wordOrder='lsw',
-            registerScaling=[0, 1, 0, 1],
-        )
-        _log.debug("    - ravo: %r", ravo)
-        this_application.add_object(ravo)
-
-    # make sure they are all there
-    _log.debug("    - object list: %r", this_device.objectList)
+    reg_bank.start()
 
     _log.debug("running")
 

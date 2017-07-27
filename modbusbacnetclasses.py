@@ -12,6 +12,9 @@ from bacpypes.basetypes import PropertyIdentifier
 _debug = 0
 _log = ModuleLogger(globals())
 
+# set module debugger flag
+_mb_bcnt_cls_debug = False
+
 PropertyIdentifier.enumerations['modbusFunction'] = 3000000
 PropertyIdentifier.enumerations['registerStart'] = 3000001
 PropertyIdentifier.enumerations['numberOfRegisters'] = 3000002
@@ -66,13 +69,17 @@ class ModbusValueProperty(Property):
         except KeyError:
             return 0.0
 
+        if _mb_bcnt_cls_debug:
+            # return test value
+            value = register_start
+            reliability = True
+        else:
         # return value from modbus register bank
-        # value, reliability = register_reader.get_register_format(dev_inst, mb_func, register_start, num_regs, reg_frmt,
-        #                                                          word_order)
-        value = register_start
-        reliability = True
-        # return a random value
-        # value = random.random() * 100.0
+            value, reliability = register_reader.get_register_format(dev_inst, mb_func, register_start, num_regs,
+                                                                     reg_frmt, word_order)
+
+
+
         if _debug: ModbusValueProperty._debug("    - value: %r", value)
 
         # print('ReadProperty from property', obj.ReadProperty('objectIdentifier'), dev_inst)

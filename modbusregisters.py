@@ -29,17 +29,21 @@ class RegisterReader:
         reg_bank_req = (0, {'type': 'bacnet', 'bcnt_inst': dev_instance, 'mb_func': mb_func, 'mb_reg': register,
                             'mb_num_regs': num_regs, 'mb_frmt': reg_format, 'mb_wo': word_order})
         try:
-            self.tx_queue.put(reg_bank_req, timeout=queue_timeout / 1000.0)
+            self.tx_queue.put(TupleSortingOn0(reg_bank_req), timeout=queue_timeout / 1000.0)
 
             try:
-                reg_bank_resp = self.rx_queue.get(timeout=queue_timeout / 1000.0)
+                reg_bank_resp = self.rx_queue.get(timeout=1.5 * queue_timeout / 1000.0)
             except Empty:
+                print('RegisterReader returned empty queue')
                 return 0.0, False  # (value, reliability)
 
             if self._check_dict_equality(reg_bank_req[1], reg_bank_resp[1]):
+                print('RegisterReader returned', reg_bank_resp)
                 return reg_bank_resp[1]['bcnt_value'], reg_bank_resp[1]['bcnt_valid']
+            print('RegisterReader had unequal dicts')
             return 0.0, False  # (value, reliability)
         except Full:
+            print('RegisterReader full queue')
             return 0.0, False  # (value, reliability)
 
     @staticmethod
@@ -48,7 +52,7 @@ class RegisterReader:
             if len(dict1) != len(dict2):
                 return False
 
-        for key, value in dict1:
+        for key, value in dict1.items():
             if key not in dict2:
                 return False
 
@@ -260,7 +264,7 @@ class RegisterBankThread(threading.Thread):
             rx_resp[1]['bcnt_value'] = 0.0
             rx_resp[1]['bcnt_valid'] = False
         finally:
-            self.tx_queue.put(timeout=0.1)  # not sure about time here
+            self.tx_queue.put(TupleSortingOn0(rx_resp), timeout=0.1)  # not sure about time here
 
     def _handle_modbus_response(self, rx_resp):
         # {'type': 'modbus', 'bcnt_inst': self.bcnt_instance, 'mb_func': self.mb_func,

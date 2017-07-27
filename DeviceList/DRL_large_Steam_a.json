@@ -9,7 +9,8 @@
   "meterModelName":"KEP Steam",
   "modbusPort":502,
   "holdingRegisters": {
-    "pollingTime":10000,
+    "pollingTime":30000,
+    "requestTimeout":1000,
     "groupConsecutive":"yes",
     "groupGaps":"yes",
     "wordOrder":"lsw",
