@@ -64,6 +64,7 @@ class ModbusValueProperty(Property):
             reg_frmt = obj._values['registerFormat']
             word_order = obj._values['wordOrder']
             register_reader = obj._register_reader
+            rx_queue = obj._rx_queue
             is_scaled = obj._is_scaled
             reg_scaling = obj._values['registerScaling']
         except KeyError:
@@ -74,9 +75,12 @@ class ModbusValueProperty(Property):
             value = register_start
             reliability = True
         else:
-        # return value from modbus register bank
+            # clear queue of any old data or this will be read
+            while not rx_queue.empty():
+                rx_queue.get(block=False)
+            # return value from modbus register bank
             value, reliability = register_reader.get_register_format(dev_inst, mb_func, register_start, num_regs,
-                                                                     reg_frmt, word_order)
+                                                                     reg_frmt, word_order, rx_queue)
 
 
 
@@ -122,11 +126,12 @@ class ModbusAnalogInputObject(AnalogInputObject):
         ReadableProperty('registerScaling', ArrayOf(Real))
     ]
 
-    def __init__(self, parent_device_inst, register_reader, **kwargs):
+    def __init__(self, parent_device_inst, register_reader, rx_queue, **kwargs):
         if _debug: ModbusAnalogInputObject._debug("__init__ %r", kwargs)
         AnalogInputObject.__init__(self, **kwargs)
         self._register_reader = register_reader
         self._parent_device_inst = parent_device_inst
+        self._rx_queue = rx_queue
         reg_scaling = self.ReadProperty('registerScaling')
         if reg_scaling == [0, 1, 0, 1]:
             self._is_scaled = True

@@ -15,24 +15,25 @@ register_formats = one_register_formats + two_register_formats + three_register_
 
 # class for bacnet points to use to access the stored values in the bank which runs in a different thread
 class RegisterReader:
-    def __init__(self, tx_queue, rx_queue):
+    def __init__(self, tx_queue):  # , rx_queue):
         # global one_register_formats, two_register_formats, three_register_formats, four_register_formats, \
         #     register_formats
         self.tx_queue = tx_queue
-        self.rx_queue = rx_queue
+        # self.rx_queue = rx_queue
 
-    def get_register_raw(self, dev_instance, mb_func, register, queue_timeout=100.0):
-        self.get_register_format(dev_instance, mb_func, register, 1, 'uint16', 'lsw', queue_timeout=queue_timeout)
+    def get_register_raw(self, dev_instance, mb_func, register, rx_queue, queue_timeout=100.0):
+        self.get_register_format(dev_instance, mb_func, register, 1, 'uint16', 'lsw', rx_queue,
+                                 queue_timeout=queue_timeout)
 
-    def get_register_format(self, dev_instance, mb_func, register, num_regs, reg_format, word_order,
+    def get_register_format(self, dev_instance, mb_func, register, num_regs, reg_format, word_order, rx_queue,
                             queue_timeout=100.0):
         reg_bank_req = (0, {'type': 'bacnet', 'bcnt_inst': dev_instance, 'mb_func': mb_func, 'mb_reg': register,
-                            'mb_num_regs': num_regs, 'mb_frmt': reg_format, 'mb_wo': word_order})
+                            'mb_num_regs': num_regs, 'mb_frmt': reg_format, 'mb_wo': word_order}, rx_queue)
         try:
             self.tx_queue.put(TupleSortingOn0(reg_bank_req), timeout=queue_timeout / 1000.0)
 
             try:
-                reg_bank_resp = self.rx_queue.get(timeout=1.5 * queue_timeout / 1000.0)
+                reg_bank_resp = rx_queue.get(timeout=1.5 * queue_timeout / 1000.0)
             except Empty:
                 print('RegisterReader returned empty queue')
                 return 0.0, False  # (value, reliability)
@@ -69,9 +70,9 @@ class RegisterBankThread(threading.Thread):
     # register_bank = {4000031: {3: [30000, {1: [0, 0], 2: [0, 0], 3: [0, 0], 4: [0, 0], 9: [21312, 1500491665.951605],
     #                            10: [17315, 1500491665.951605]}]}}
 
-    def __init__(self, tx_queue, rx_queue):
+    def __init__(self, rx_queue):  # tx_queue, rx_queue):
         threading.Thread.__init__(self, daemon=True)
-        self.tx_queue = tx_queue  # for bacnet responses
+        # self.tx_queue = tx_queue  # for bacnet responses
         self.rx_queue = rx_queue  # for bacnet requests and modbus responses
 
         # FOR TESTING (normally set in self.add_instance:
@@ -243,6 +244,8 @@ class RegisterBankThread(threading.Thread):
         bcnt_req_format = rx_resp[1]['mb_frmt']
         bcnt_req_wo = rx_resp[1]['mb_wo']
         earliest_collec_time = time_at_loop_start
+        tx_queue = rx_resp[2]
+        # rx_resp.pop(2)
         try:
             for ii in range(bcnt_req_num_regs):
                 resp_regs.append(self._register_bank[bcnt_req_inst][bcnt_req_mb_func][1][bcnt_req_reg + ii][0])
@@ -264,7 +267,8 @@ class RegisterBankThread(threading.Thread):
             rx_resp[1]['bcnt_value'] = 0.0
             rx_resp[1]['bcnt_valid'] = False
         finally:
-            self.tx_queue.put(TupleSortingOn0(rx_resp), timeout=0.1)  # not sure about time here
+            # don't need TupleSortingOn0 here since rx_resp is already of this type
+            tx_queue.put(rx_resp, timeout=0.1)  # not sure about time here
 
     def _handle_modbus_response(self, rx_resp):
         # {'type': 'modbus', 'bcnt_inst': self.bcnt_instance, 'mb_func': self.mb_func,

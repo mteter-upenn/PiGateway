@@ -35,6 +35,7 @@ import queue
 _debug = 0
 _log = ModuleLogger(globals())
 
+
 #
 #   __main__
 #
@@ -46,18 +47,18 @@ def main():
     # if _debug: _log.debug("initialization")
     # if _debug: _log.debug("    - args: %r", args)
 
-    object_name = 'LinuxLaptop'
-    object_id = 2459990
+    # object_name = 'LinuxLaptop'
+    # object_id = 2459990
     max_apdu_len = 1024
     segmentation_support = 'segmentedBoth'
     vendor_id = 15
     ip_address = '130.91.139.93/22'
 
-    bank_to_out_queue = queue.Queue()
+    # bank_to_out_queue = queue.Queue()
     out_to_bank_queue = queue.PriorityQueue()
 
-    reg_reader = modbusregisters.RegisterReader(out_to_bank_queue, bank_to_out_queue)
-    reg_bank = modbusregisters.RegisterBankThread(bank_to_out_queue, out_to_bank_queue)
+    reg_reader = modbusregisters.RegisterReader(out_to_bank_queue)  # , bank_to_out_queue)
+    reg_bank = modbusregisters.RegisterBankThread(out_to_bank_queue)
 
     dev_list = []
     app_list = []
@@ -130,7 +131,7 @@ def main():
                         # "unitsId": 157,
                         # "pointScale": [0, 1, 0, 1]
 
-                        if register['poll'] == 'no':
+                        if register['poll'] != 'yes':
                             continue
 
                         obj_name = register['objectName']
@@ -154,6 +155,7 @@ def main():
                         ravo = modbusbacnetclasses.ModbusAnalogInputObject(
                             parent_device_inst=dev_inst,
                             register_reader=reg_reader,
+                            rx_queue=queue.Queue(),
                             objectIdentifier=('analogInput', obj_inst),
                             objectName=obj_name,
                             description=obj_description,
@@ -167,7 +169,6 @@ def main():
                         )
                         # _log.debug("    - ravo: %r", ravo)
                         app_list[-1].add_object(ravo)
-
 
     # # this_device = modbusbacnetclasses.ModbusLocalDevice(
     # this_device = modbusbacnetclasses.ModbusLocalDevice(
