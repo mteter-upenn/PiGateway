@@ -102,18 +102,7 @@ class ModbusValueProperty(Property):
     #     self.object_parent = obj_id
     #     print('parent set:', obj_id)
 
-# PropertyIdentifier.enumerations['modbusFunction'] = 3000000
-# PropertyIdentifier.enumerations['registerStart'] = 3000001
-# PropertyIdentifier.enumerations['numberOfRegisters'] = 3000002
-# PropertyIdentifier.enumerations['registerFormat'] = 3000003
-# PropertyIdentifier.enumerations['wordOrder'] = 3000004
-# PropertyIdentifier.enumerations['registerScaling'] = 3000005
-# PropertyIdentifier.enumerations['deviceIp'] = 3000006
-# PropertyIdentifier.enumerations['modbusId'] = 3000007
-# PropertyIdentifier.enumerations['modbusMapName'] = 3000008
-# PropertyIdentifier.enumerations['modbusMapRev'] = 3000009
-# PropertyIdentifier.enumerations['deviceModelName'] = 3000010
-# PropertyIdentifier.enumerations['modbusPort'] = 3000011
+
 @bacpypes_debugging
 class ModbusAnalogInputObject(AnalogInputObject):
     properties = [

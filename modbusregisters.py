@@ -66,6 +66,7 @@ class RegisterReader:
 class RegisterBankThread(threading.Thread):
     _register_bank = {}
     _register_clusters = {}
+    _unq_ip_last_req = {}
     # FOR TESTING
     # register_bank = {4000031: {3: [30000, {1: [0, 0], 2: [0, 0], 3: [0, 0], 4: [0, 0], 9: [21312, 1500491665.951605],
     #                            10: [17315, 1500491665.951605]}]}}
@@ -94,6 +95,10 @@ class RegisterBankThread(threading.Thread):
         mb_id = map_dict['modbusId']
         mb_port = map_dict['modbusPort']
         val_types = {'holdingRegisters': 3, 'inputRegisters': 4, 'coilBits': 1, 'inputBits': 2}
+
+        trigger_time = time.time()
+        if mb_ip not in self._unq_ip_last_req:
+            self._unq_ip_last_req[mb_ip] = trigger_time
 
         for val_type, mb_func in val_types.items():
             if val_type not in map_dict:  # ('holdingRegisters', 'inputRegisters', 'coilBits', 'inputBits'):
@@ -156,7 +161,8 @@ class RegisterBankThread(threading.Thread):
                         mb_poll_thread = ModbusPollThread(self.rx_queue, bcnt_inst, mb_ip, mb_id, mb_func,
                                                           clstr_reg_start, last_iter_reg - clstr_reg_start
                                                           + 1, mb_request_timeout, mb_port)
-                        self._register_clusters[(bcnt_inst, clstr)] = [mb_poll_thread, 0.0, mb_polling_time]
+                        self._register_clusters[(bcnt_inst, clstr)] = [mb_poll_thread, trigger_time, mb_polling_time,
+                                                                       mb_ip]
 
                         # print('\nclstr:', clstr)
                         # print('start', clstr_reg_start)
@@ -176,7 +182,8 @@ class RegisterBankThread(threading.Thread):
                         mb_poll_thread = ModbusPollThread(self.rx_queue, bcnt_inst, mb_ip, mb_id, mb_func,
                                                           clstr_reg_start, last_iter_reg - clstr_reg_start
                                                           + 1, mb_request_timeout, mb_port)
-                        self._register_clusters[(bcnt_inst, clstr)] = [mb_poll_thread, 0.0, mb_polling_time]
+                        self._register_clusters[(bcnt_inst, clstr)] = [mb_poll_thread, trigger_time, mb_polling_time,
+                                                                       mb_ip]
 
                         # print('\nclstr:', clstr)
                         # print('start', clstr_reg_start)
@@ -195,7 +202,8 @@ class RegisterBankThread(threading.Thread):
                         mb_poll_thread = ModbusPollThread(self.rx_queue, bcnt_inst, mb_ip, mb_id, mb_func,
                                                           raw_regs_list[ii][1], raw_regs_list[ii][2] -
                                                           raw_regs_list[ii][1] + 1, mb_request_timeout, mb_port)
-                        self._register_clusters[(bcnt_inst, clstr)] = [mb_poll_thread, 0.0, mb_polling_time]
+                        self._register_clusters[(bcnt_inst, clstr)] = [mb_poll_thread, trigger_time, mb_polling_time,
+                                                                       mb_ip]
 
                         clstr += 1
                         clstr_reg_start = raw_regs_list[ii][1]
@@ -204,25 +212,33 @@ class RegisterBankThread(threading.Thread):
         return True
 
     def run(self):
+        # time_at_loop_start = time.time()
         for reg_clstr, clstr_val in self._register_clusters.items():
             # if clstr_val[1] < time_at_loop_start:
-            #     clstr_val[1] = time_at_loop_start + clstr_val[2] / 1000.0
+            time.sleep(0.5)
+            cur_time = time.time()
+            new_expected_run_time = max(cur_time, self._unq_ip_last_req[clstr_val[3]] + 0.5)
+            self._unq_ip_last_req[clstr_val[3]] = new_expected_run_time
+            clstr_val[1] = new_expected_run_time + clstr_val[2] / 1000.0
             clstr_val[0].start()
         while True:
             # time.sleep(5)
-            time_at_loop_start = time.time()
+            # time_at_loop_start = time.time()
 
             # make all modbus requests
             for reg_clstr, clstr_val in self._register_clusters.items():
-                if clstr_val[1] < time_at_loop_start:
-                    clstr_val[1] = time_at_loop_start + clstr_val[2] / 1000.0
-                    clstr_val[0].run()
+                cur_time = time.time()
+                if clstr_val[1] < cur_time:
+                    new_expected_run_time = max(cur_time, self._unq_ip_last_req[clstr_val[3]] + 0.5)
+                    self._unq_ip_last_req[clstr_val[3]] = new_expected_run_time
+                    clstr_val[1] = new_expected_run_time + clstr_val[2] / 1000.0
+                    clstr_val[0].run(delay=max(new_expected_run_time - cur_time, 0))
 
             try:
                 rx_resp = self.rx_queue.get_nowait()  # no reason to hang here, just wait until next loop
 
                 if rx_resp[1]['type'] == 'bacnet':
-                    self._handle_bacnet_request(rx_resp, time_at_loop_start)
+                    self._handle_bacnet_request(rx_resp, time.time())
                 elif rx_resp[1]['type'] == 'modbus':
                     self._handle_modbus_response(rx_resp)
                     # pprint(self.register_bank)
@@ -457,10 +473,11 @@ class ModbusPollThread(threading.Thread):
         self.bcnt_instance = bcnt_instance
         self.currently_running = False
 
-    def run(self):
+    def run(self, delay=0.0):
         if not self.currently_running:
             self.currently_running = True
-            print('making modbus request at', time.time())
+            time.sleep(delay)
+            print('making modbus request for', self.ip, self.mb_id, 'at', time.time())
             # print('ip:   ', self.ip)
             # print('id:   ', self.mb_id)
             # print('func: ', self.mb_func)
