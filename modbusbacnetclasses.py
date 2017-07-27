@@ -164,3 +164,5 @@ class ModbusLocalDevice(LocalDeviceObject):
         ReadableProperty('modbusPort', Integer),
         # ReadableProperty('wordOrder', CharacterString)
     ]
+
+register_object_type(ModbusLocalDevice)
