@@ -17,9 +17,10 @@ from bacpypes.debugging import ModuleLogger  # bacpypes_debugging,
 
 from bacpypes.core import run
 
-# from bacpypes.primitivedata import Real
+# from bacpypes.primitivedata import BitString  # Real
 # from bacpypes.object import AnalogValueObject, Property, register_object_type
 # from bacpypes.errors import ExecutionError
+from bacpypes.basetypes import StatusFlags
 
 from bacpypes.app import BIPSimpleApplication
 # from bacpypes.service.device import LocalDeviceObject
@@ -64,7 +65,7 @@ def main():
     app_list = []
 
     for fn in os.listdir(os.getcwd() + '/DeviceList'):
-        if fn.endswith('.json') and fn.startswith('DRL_lar'):
+        if fn.endswith('.json') and fn.startswith('DGL'):
             print(os.getcwd() + '/DeviceList/' + fn)
             json_raw_str = open(os.getcwd() + '/DeviceList/' + fn, 'r')
             map_dict = json.load(json_raw_str)
@@ -151,8 +152,11 @@ def main():
                             continue
                         obj_units_id = register['unitsId']
                         obj_pt_scale = register['pointScale']
+                        obj_eq_m = (obj_pt_scale[3] - obj_pt_scale[2])/(obj_pt_scale[1] - obj_pt_scale[0])
+                        obj_eq_b = obj_pt_scale[2] - obj_eq_m * obj_pt_scale[0]
+                        print('m', obj_eq_m, 'b', obj_eq_b)
 
-                        ravo = modbusbacnetclasses.ModbusAnalogInputObject(
+                        maio = modbusbacnetclasses.ModbusAnalogInputObject(
                             parent_device_inst=dev_inst,
                             register_reader=reg_reader,
                             rx_queue=queue.Queue(),
@@ -164,11 +168,12 @@ def main():
                             numberOfRegisters=obj_num_regs,
                             registerFormat=obj_reg_format,
                             wordOrder=mb_dev_wo,
-                            registerScaling=obj_pt_scale,
+                            modbusScaling=modbusbacnetclasses.ModbusScaling([obj_eq_m, obj_eq_b]),
                             units=obj_units_id,
+                            statusFlags=StatusFlags([0,1,0,0]),
                         )
                         # _log.debug("    - ravo: %r", ravo)
-                        app_list[-1].add_object(ravo)
+                        app_list[-1].add_object(maio)
 
     # # this_device = modbusbacnetclasses.ModbusLocalDevice(
     # this_device = modbusbacnetclasses.ModbusLocalDevice(
@@ -222,10 +227,11 @@ def main():
     # # make sure they are all there
     # _log.debug("    - object list: %r", this_device.objectList)
 
-    reg_bank.start()
+    # print('register bank start')
+    # reg_bank.start()
 
     _log.debug("running")
-
+    print('bacnet start')
     run()
 
     _log.debug("fini")

@@ -143,16 +143,16 @@ class ModbusAnalogInputObject(AnalogInputObject):
 register_object_type(ModbusAnalogInputObject)
 
 
-class RegisterReader:
-    def __init__(self, tx_queue, rx_queue):
-        self.tx_queue = tx_queue
-        self.rx_queue = rx_queue
-
-    def get_register_raw(self, dev_instance, mb_function, register):
-        self.tx_queue.put(('bacnet', dev_instance, mb_function, register, 1, 'uint16'))
-
-    def get_register_format(self, dev_instance, mb_function, register, num_regs, reg_format):
-        self.tx_queue.put(('bacnet', dev_instance, mb_function, register, num_regs, reg_format))
+# class RegisterReader:
+#     def __init__(self, tx_queue, rx_queue):
+#         self.tx_queue = tx_queue
+#         self.rx_queue = rx_queue
+#
+#     def get_register_raw(self, dev_instance, mb_function, register):
+#         self.tx_queue.put(('bacnet', dev_instance, mb_function, register, 1, 'uint16'))
+#
+#     def get_register_format(self, dev_instance, mb_function, register, num_regs, reg_format):
+#         self.tx_queue.put(('bacnet', dev_instance, mb_function, register, num_regs, reg_format))
 
 
 

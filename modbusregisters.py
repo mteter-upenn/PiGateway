@@ -5,6 +5,8 @@ import time
 from struct import pack, unpack
 # from pprint import pprint
 
+_debug_modbus_registers = True
+
 # globals
 one_register_formats = ('uint16', 'sint16', 'sm1k16', 'sm10k16', 'bin', 'hex', 'ascii')
 two_register_formats = ('uint32', 'sint32', 'um1k32', 'sm1k32', 'um10k32', 'sm10k32', 'float')
@@ -35,16 +37,17 @@ class RegisterReader:
             try:
                 reg_bank_resp = rx_queue.get(timeout=1.5 * queue_timeout / 1000.0)
             except Empty:
-                print('RegisterReader returned empty queue')
+                if _debug_modbus_registers: print('RegisterReader RETURNED EMPTY QUEUE')
                 return 0.0, False  # (value, reliability)
 
             if self._check_dict_equality(reg_bank_req[1], reg_bank_resp[1]):
-                print('RegisterReader returned', reg_bank_resp)
+                if _debug_modbus_registers: print('RegisterReader returned', reg_bank_resp)
                 return reg_bank_resp[1]['bcnt_value'], reg_bank_resp[1]['bcnt_valid']
-            print('RegisterReader had unequal dicts')
+
+            if _debug_modbus_registers: print('RegisterReader HAD UNEQUAL DICTS')
             return 0.0, False  # (value, reliability)
         except Full:
-            print('RegisterReader full queue')
+            if _debug_modbus_registers: print('RegisterReader FULL QUEUE')
             return 0.0, False  # (value, reliability)
 
     @staticmethod
@@ -477,7 +480,7 @@ class ModbusPollThread(threading.Thread):
         if not self.currently_running:
             self.currently_running = True
             time.sleep(delay)
-            print('making modbus request for', self.ip, self.mb_id, 'at', time.time())
+            if _debug_modbus_registers: print('making modbus request for', self.ip, self.mb_id, 'at', time.time())
             # print('ip:   ', self.ip)
             # print('id:   ', self.mb_id)
             # print('func: ', self.mb_func)
@@ -490,12 +493,12 @@ class ModbusPollThread(threading.Thread):
                            'mb_resp_time': time.time()})
             self.tx_queue.put(TupleSortingOn0(tx_resp), 0.1)
             if otpt[0] == 'Err':
-                print('got modbus error', otpt)
+                if _debug_modbus_registers: print('got modbus error', otpt)
             else:
-                print('got modbus response')
+                if _debug_modbus_registers: print('got modbus response')
             self.currently_running = False
         else:
-            print('currently running')
+            if _debug_modbus_registers: print('currently running')
 
 
 class TupleSortingOn0(tuple):

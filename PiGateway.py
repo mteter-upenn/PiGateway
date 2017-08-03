@@ -17,12 +17,13 @@ from bacpypes.bvllservice import BIPForeign, AnnexJCodec, UDPMultiplexer  # , BI
 
 from bacpypes.app import Application
 from bacpypes.appservice import StateMachineAccessPoint, ApplicationServiceAccessPoint
-from bacpypes.service.device import LocalDeviceObject, WhoIsIAmServices
+from bacpypes.service.device import WhoIsIAmServices  # LocalDeviceObject,
 from bacpypes.service.object import ReadWritePropertyServices, ReadWritePropertyMultipleServices
 
 # from bacpypes.constructeddata import ArrayOf
 # from bacpypes.primitivedata import Real, Integer, CharacterString
 # from bacpypes.object import Property, register_object_type, AnalogInputObject, ReadableProperty  # , AnalogValueObject
+from bacpypes.basetypes import StatusFlags
 
 from bacpypes.vlan import Network, Node
 # from bacpypes.errors import ExecutionError
@@ -109,8 +110,8 @@ class ModbusVLANApplication(Application, WhoIsIAmServices, ReadWritePropertyServ
     # ADDED
     def do_WhoIsRequest(self, apdu):
         print('whoisrequest from', apdu.pduSource)
-        if apdu.pduSource == Address('0:130.91.137.90'):
-            apdu.pduSource = GlobalBroadcast()
+        # if apdu.pduSource == Address('0:128.91.135.13'):
+        #     apdu.pduSource = GlobalBroadcast()
 
         # apdu.pduSource = GlobalBroadcast() # global or local broadcast?
         WhoIsIAmServices.do_WhoIsRequest(self, apdu)
@@ -150,7 +151,9 @@ class VLANRouter:
         # from WhoIsIAmForeign ForeignApplication
         # create a generic BIP stack, bound to the Annex J server
         # on the UDP multiplexer
-        self.bip = BIPForeign(Address('10.166.1.72'), 30)
+        # self.bip = BIPForeign(Address('10.166.1.72'), 30)
+        # self.bip = BIPForeign(Address('192.168.1.10'), 30)
+        self.bip = BIPForeign(Address('130.91.139.99'), 30)
         self.annexj = AnnexJCodec()
         self.mux = UDPMultiplexer(local_address, noBroadcast=True)
         # end
@@ -207,11 +210,12 @@ def main():
     # vlan_network = args.net2
 
     local_address = Address('130.91.139.93/22')
+    # local_address = Address('10.166.1.250')
     local_network = 0
     # vlan_address = Address(5)
     vlan_network = 9997
     max_apdu_len = 1024
-    segmentation_support = 'segmentedBoth'
+    segmentation_support = 'noSegmentation'
     vendor_id = 15
 
     # create the VLAN router, bind it to the local network
@@ -227,11 +231,11 @@ def main():
     # bind the router stack to the vlan network through this node
     router.nsap.bind(router_node, vlan_network)
 
-    bank_to_out_queue = queue.Queue()
+    # bank_to_out_queue = queue.Queue()
     out_to_bank_queue = queue.PriorityQueue()
 
-    reg_reader = modbusregisters.RegisterReader(out_to_bank_queue, bank_to_out_queue)
-    reg_bank = modbusregisters.RegisterBankThread(bank_to_out_queue, out_to_bank_queue)
+    reg_reader = modbusregisters.RegisterReader(out_to_bank_queue)  # , bank_to_out_queue)
+    reg_bank = modbusregisters.RegisterBankThread(out_to_bank_queue)
 
     dev_list = []
     app_list = []
@@ -281,6 +285,7 @@ def main():
                 ))
 
                 app_list.append(ModbusVLANApplication(dev_list[-1], ip_to_bcnt_address(dev_ip, dev_mb_id)))
+                vlan.add_node(app_list[-1].vlan_node)
 
                 services_supported = app_list[-1].get_services_supported()
                 dev_list[-1].protocolServicesSupported = services_supported.value
@@ -324,10 +329,14 @@ def main():
                             continue
                         obj_units_id = register['unitsId']
                         obj_pt_scale = register['pointScale']
+                        obj_eq_m = (obj_pt_scale[3] - obj_pt_scale[2]) / (obj_pt_scale[1] - obj_pt_scale[0])
+                        obj_eq_b = obj_pt_scale[2] - obj_eq_m * obj_pt_scale[0]
+                        print('m', obj_eq_m, 'b', obj_eq_b)
 
                         ravo = modbusbacnetclasses.ModbusAnalogInputObject(
                             parent_device_inst=dev_inst,
                             register_reader=reg_reader,
+                            rx_queue=queue.Queue(),
                             objectIdentifier=('analogInput', obj_inst),
                             objectName=obj_name,
                             description=obj_description,
@@ -336,8 +345,9 @@ def main():
                             numberOfRegisters=obj_num_regs,
                             registerFormat=obj_reg_format,
                             wordOrder=mb_dev_wo,
-                            registerScaling=obj_pt_scale,
+                            modbusScaling=modbusbacnetclasses.ModbusScaling([obj_eq_m, obj_eq_b]),
                             units=obj_units_id,
+                            statusFlags=StatusFlags([0, 1, 0, 0]),
                         )
                         # _log.debug("    - ravo: %r", ravo)
                         app_list[-1].add_object(ravo)
@@ -422,7 +432,9 @@ def main():
 
     _log.debug("running")
 
-    reg_bank.start()
+    # print('register bank start')
+    # reg_bank.start()
+
     print('run')
     run()
 

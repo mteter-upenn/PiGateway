@@ -20,13 +20,16 @@ PropertyIdentifier.enumerations['registerStart'] = 3000001
 PropertyIdentifier.enumerations['numberOfRegisters'] = 3000002
 PropertyIdentifier.enumerations['registerFormat'] = 3000003
 PropertyIdentifier.enumerations['wordOrder'] = 3000004
-PropertyIdentifier.enumerations['registerScaling'] = 3000005
+PropertyIdentifier.enumerations['modbusScaling'] = 3000005
 PropertyIdentifier.enumerations['deviceIp'] = 3000006
 PropertyIdentifier.enumerations['modbusId'] = 3000007
 PropertyIdentifier.enumerations['modbusMapName'] = 3000008
 PropertyIdentifier.enumerations['modbusMapRev'] = 3000009
 PropertyIdentifier.enumerations['deviceModelName'] = 3000010
 PropertyIdentifier.enumerations['modbusPort'] = 3000011
+
+
+ModbusScaling = ArrayOf(Real)
 
 
 # @bacpypes_debugging
@@ -65,8 +68,10 @@ class ModbusValueProperty(Property):
             word_order = obj._values['wordOrder']
             register_reader = obj._register_reader
             rx_queue = obj._rx_queue
-            is_scaled = obj._is_scaled
-            reg_scaling = obj._values['registerScaling']
+            # is_scaled = obj._is_scaled
+            reg_scaling = obj._values['modbusScaling']  # ArrayOf[lenArr, m, b]
+            # status_flags = obj._values['statusFlags']
+            # print(status_flags)
         except KeyError:
             return 0.0
 
@@ -82,7 +87,7 @@ class ModbusValueProperty(Property):
             value, reliability = register_reader.get_register_format(dev_inst, mb_func, register_start, num_regs,
                                                                      reg_frmt, word_order, rx_queue)
 
-
+        value = value * reg_scaling[1] + reg_scaling[2]
 
         if _debug: ModbusValueProperty._debug("    - value: %r", value)
 
@@ -90,6 +95,7 @@ class ModbusValueProperty(Property):
         # print('obj parent is', self.object_parent)
         if not reliability:
             # need to throw flag in reliabilty and statusFlags
+            # obj._values['reliability']
             pass
         return value
 
@@ -112,7 +118,7 @@ class ModbusAnalogInputObject(AnalogInputObject):
         ReadableProperty('numberOfRegisters', Integer),
         ReadableProperty('registerFormat', CharacterString),
         ReadableProperty('wordOrder', CharacterString),
-        ReadableProperty('registerScaling', ArrayOf(Real))
+        ReadableProperty('modbusScaling', ModbusScaling)
     ]
 
     def __init__(self, parent_device_inst, register_reader, rx_queue, **kwargs):
@@ -121,11 +127,10 @@ class ModbusAnalogInputObject(AnalogInputObject):
         self._register_reader = register_reader
         self._parent_device_inst = parent_device_inst
         self._rx_queue = rx_queue
-        reg_scaling = self.ReadProperty('registerScaling')
-        if reg_scaling == [0, 1, 0, 1]:
-            self._is_scaled = True
-        else:
-            self._is_scaled = False
+
+        print(self._values['objectName'])
+        self._values['reliability'] = 'communicationFailure'
+        print(self._values['reliability'], self._values['statusFlags'], self._values['statusFlags']['fault'], '\n')
 
     # def ReadProperty(self, propid, arrayIndex=None):
     #     print('object overwrite ReadProperty')
