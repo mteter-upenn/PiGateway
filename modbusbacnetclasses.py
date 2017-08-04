@@ -27,6 +27,7 @@ PropertyIdentifier.enumerations['modbusMapName'] = 3000008
 PropertyIdentifier.enumerations['modbusMapRev'] = 3000009
 PropertyIdentifier.enumerations['deviceModelName'] = 3000010
 PropertyIdentifier.enumerations['modbusPort'] = 3000011
+PropertyIdentifier.enumerations['modbusCommErr'] = 3000012
 
 
 ModbusScaling = ArrayOf(Real)
@@ -87,16 +88,22 @@ class ModbusValueProperty(Property):
             value, reliability = register_reader.get_register_format(dev_inst, mb_func, register_start, num_regs,
                                                                      reg_frmt, word_order, rx_queue)
 
-        value = value * reg_scaling[1] + reg_scaling[2]
-
         if _debug: ModbusValueProperty._debug("    - value: %r", value)
 
         # print('ReadProperty from property', obj.ReadProperty('objectIdentifier'), dev_inst)
         # print('obj parent is', self.object_parent)
-        if not reliability:
-            # need to throw flag in reliabilty and statusFlags
-            # obj._values['reliability']
-            pass
+        if reliability != 'noFaultDetected':
+            obj._values['reliability'] = reliability
+            obj._values['statusFlags']['fault'] = 1
+            if reliability == 'communicationFailure':
+                obj._values['modbusCommErr'] = value
+            value = obj._values[self.identifier]  # set value to return to the current value stored
+        else:
+            obj._values['reliability'] = reliability
+            obj._values['statusFlags']['fault'] = 0
+            obj._values['modbusCommErr'] = 0
+            value = value * reg_scaling[1] + reg_scaling[2]  # scale modbus value to bacnet value
+
         return value
 
     def WriteProperty(self, obj, value, array_index=None, priority=None, direct=False):
@@ -118,7 +125,8 @@ class ModbusAnalogInputObject(AnalogInputObject):
         ReadableProperty('numberOfRegisters', Integer),
         ReadableProperty('registerFormat', CharacterString),
         ReadableProperty('wordOrder', CharacterString),
-        ReadableProperty('modbusScaling', ModbusScaling)
+        ReadableProperty('modbusScaling', ModbusScaling),
+        ReadableProperty('modbusCommErr', Integer)
     ]
 
     def __init__(self, parent_device_inst, register_reader, rx_queue, **kwargs):
@@ -127,10 +135,13 @@ class ModbusAnalogInputObject(AnalogInputObject):
         self._register_reader = register_reader
         self._parent_device_inst = parent_device_inst
         self._rx_queue = rx_queue
-
-        print(self._values['objectName'])
         self._values['reliability'] = 'communicationFailure'
-        print(self._values['reliability'], self._values['statusFlags'], self._values['statusFlags']['fault'], '\n')
+        self._values['statusFlags']['fault'] = 1
+        self._values['modbusCommErr'] = 19
+
+        # print(self._values['objectName'])
+        # self._values['reliability'] = 'communicationFailure'
+        # print(self._values['reliability'], self._values['statusFlags'], self._values['statusFlags']['fault'], '\n')
 
     # def ReadProperty(self, propid, arrayIndex=None):
     #     print('object overwrite ReadProperty')

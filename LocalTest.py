@@ -154,7 +154,7 @@ def main():
                         obj_pt_scale = register['pointScale']
                         obj_eq_m = (obj_pt_scale[3] - obj_pt_scale[2])/(obj_pt_scale[1] - obj_pt_scale[0])
                         obj_eq_b = obj_pt_scale[2] - obj_eq_m * obj_pt_scale[0]
-                        print('m', obj_eq_m, 'b', obj_eq_b)
+                        # print('m', obj_eq_m, 'b', obj_eq_b)
 
                         maio = modbusbacnetclasses.ModbusAnalogInputObject(
                             parent_device_inst=dev_inst,
@@ -227,8 +227,8 @@ def main():
     # # make sure they are all there
     # _log.debug("    - object list: %r", this_device.objectList)
 
-    # print('register bank start')
-    # reg_bank.start()
+    print('register bank start')
+    reg_bank.start()
 
     _log.debug("running")
     print('bacnet start')

@@ -38,17 +38,17 @@ class RegisterReader:
                 reg_bank_resp = rx_queue.get(timeout=1.5 * queue_timeout / 1000.0)
             except Empty:
                 if _debug_modbus_registers: print('RegisterReader RETURNED EMPTY QUEUE')
-                return 0.0, False  # (value, reliability)
+                return 0.0, 'processError'  # (value, reliability)
 
             if self._check_dict_equality(reg_bank_req[1], reg_bank_resp[1]):
                 if _debug_modbus_registers: print('RegisterReader returned', reg_bank_resp)
                 return reg_bank_resp[1]['bcnt_value'], reg_bank_resp[1]['bcnt_valid']
 
             if _debug_modbus_registers: print('RegisterReader HAD UNEQUAL DICTS')
-            return 0.0, False  # (value, reliability)
+            return 0.0, 'processError'  # (value, reliability)
         except Full:
             if _debug_modbus_registers: print('RegisterReader FULL QUEUE')
-            return 0.0, False  # (value, reliability)
+            return 0.0, 'processError'  # (value, reliability)
 
     @staticmethod
     def _check_dict_equality(dict1, dict2, check_len=False):
@@ -145,7 +145,7 @@ class RegisterBankThread(threading.Thread):
 
                 last_reg = start_reg + num_regs - 1
                 for ii in range(start_reg, start_reg + num_regs):
-                    raw_regs[ii] = [0, 0.0]
+                    raw_regs[ii] = [0, 0.0, 19, 0.0]  # data, time of data retrieval, comm err, time of comm err
                     raw_regs_list.append([ii, start_reg, last_reg])
 
             # set up dicts for self.register_bank{}
@@ -262,29 +262,35 @@ class RegisterBankThread(threading.Thread):
         bcnt_req_num_regs = rx_resp[1]['mb_num_regs']
         bcnt_req_format = rx_resp[1]['mb_frmt']
         bcnt_req_wo = rx_resp[1]['mb_wo']
-        earliest_collec_time = time_at_loop_start
+        oldest_collec_time = time_at_loop_start
         tx_queue = rx_resp[2]
         # rx_resp.pop(2)
         try:
             for ii in range(bcnt_req_num_regs):
-                resp_regs.append(self._register_bank[bcnt_req_inst][bcnt_req_mb_func][1][bcnt_req_reg + ii][0])
-                earliest_collec_time = min(earliest_collec_time,
-                                           self._register_bank[bcnt_req_inst][bcnt_req_mb_func][1][bcnt_req_reg +
-                                                                                                   ii][1])
+                register_vals = self._register_bank[bcnt_req_inst][bcnt_req_mb_func][1][bcnt_req_reg + ii]
+                if register_vals[2] != 0:
+                    # error in last comm
+                    rx_resp[1]['bcnt_value'] = register_vals[2]  # return the comm error
+                    rx_resp[1]['bcnt_valid'] = 'communicationFailure'
+                    break  # exit the try and head to finally
+                    raise
+                else:
+                    resp_regs.append([0])
+                    oldest_collec_time = min(oldest_collec_time, register_vals[1])
 
             bcnt_pt_val = self._format_registers_to_point(resp_regs, bcnt_req_format, bcnt_req_wo)
             rx_resp[1]['bcnt_value'] = bcnt_pt_val
-            rx_resp[1]['bcnt_valid'] = True
+            rx_resp[1]['bcnt_valid'] = 'noFaultDetected'
 
-            # check if a long period of time has passed between now and the earliest bit of data found
-            if (time_at_loop_start - earliest_collec_time) > \
+            # check if a long period of time has passed between now and the oldest bit of data found
+            if (time_at_loop_start - oldest_collec_time) > \
                     (self._register_bank[bcnt_req_inst][bcnt_req_mb_func][0] * 3 / 1000.0):
                 # modbus values from long ago
-                rx_resp[1]['bcnt_valid'] = False
+                rx_resp[1]['bcnt_valid'] = 'unreliableOther'
         except KeyError:
             # register does not exist in bank
             rx_resp[1]['bcnt_value'] = 0.0
-            rx_resp[1]['bcnt_valid'] = False
+            rx_resp[1]['bcnt_valid'] = 'processError'
         finally:
             # don't need TupleSortingOn0 here since rx_resp is already of this type
             tx_queue.put(rx_resp, timeout=0.1)  # not sure about time here
@@ -305,15 +311,22 @@ class RegisterBankThread(threading.Thread):
         mb_resp = rx_resp[1]['mb_otpt']
         mb_resp_time = rx_resp[1]['mb_resp_time']
 
+        inst_reg_bank = self._register_bank[bcnt_inst][mb_func][1]
         if mb_resp[0] == 'Err':
             # if there is an error, don't update registers
-            pass
+            for reg in range(mb_reg, mb_reg + mb_num_regs):
+                if reg in inst_reg_bank:  # only add to reg bank where necessary
+                    # inst_reg_bank[reg][0] = mb_resp[reg - mb_reg]
+                    # inst_reg_bank[reg][1] = mb_resp_time
+                    inst_reg_bank[reg][2] = mb_resp[1]
+                    inst_reg_bank[reg][3] = mb_resp_time
         else:
-            inst_reg_bank = self._register_bank[bcnt_inst][mb_func][1]
             for reg in range(mb_reg, mb_reg + mb_num_regs):
                 if reg in inst_reg_bank:  # only add to reg bank where necessary
                     inst_reg_bank[reg][0] = mb_resp[reg - mb_reg]
                     inst_reg_bank[reg][1] = mb_resp_time
+                    inst_reg_bank[reg][2] = 0
+                    inst_reg_bank[reg][3] = mb_resp_time
                     # self.register_bank[bcnt_inst][mb_func][1][reg][0] = mb_resp[reg - mb_reg]
                     # self.register_bank[bcnt_inst][mb_func][1][reg][1] = mb_resp_time
 
