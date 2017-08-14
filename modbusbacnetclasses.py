@@ -97,6 +97,8 @@ class ModbusValueProperty(Property):
             obj._values['statusFlags']['fault'] = 1
             if reliability == 'communicationFailure':
                 obj._values['modbusCommErr'] = value
+            else:
+                obj._values['modbusCommErr'] = 0
             value = obj._values[self.identifier]  # set value to return to the current value stored
         else:
             obj._values['reliability'] = reliability

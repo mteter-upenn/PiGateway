@@ -5,7 +5,7 @@ import time
 from struct import pack, unpack
 # from pprint import pprint
 
-_debug_modbus_registers = True
+_debug_modbus_registers = False
 
 # globals
 one_register_formats = ('uint16', 'sint16', 'sm1k16', 'sm10k16', 'bin', 'hex', 'ascii')
@@ -13,6 +13,10 @@ two_register_formats = ('uint32', 'sint32', 'um1k32', 'sm1k32', 'um10k32', 'sm10
 three_register_formats = ('uint48', 'um1k48', 'sm1k48', 'um10k48', 'sm10k48')
 four_register_formats = ('uint64', 'sint64', 'um1k64', 'sm1k64', 'um10k64', 'sm10k64', 'double', 'energy')
 register_formats = one_register_formats + two_register_formats + three_register_formats + four_register_formats
+
+
+class ModbusCommError(Exception):
+    pass
 
 
 # class for bacnet points to use to access the stored values in the bank which runs in a different thread
@@ -272,10 +276,10 @@ class RegisterBankThread(threading.Thread):
                     # error in last comm
                     rx_resp[1]['bcnt_value'] = register_vals[2]  # return the comm error
                     rx_resp[1]['bcnt_valid'] = 'communicationFailure'
-                    break  # exit the try and head to finally
-                    raise
+                    # break  # exit the try and head to finally
+                    raise ModbusCommError('Modbus communications error ' + str(register_vals[2]))
                 else:
-                    resp_regs.append([0])
+                    resp_regs.append(register_vals[0])
                     oldest_collec_time = min(oldest_collec_time, register_vals[1])
 
             bcnt_pt_val = self._format_registers_to_point(resp_regs, bcnt_req_format, bcnt_req_wo)
@@ -289,8 +293,10 @@ class RegisterBankThread(threading.Thread):
                 rx_resp[1]['bcnt_valid'] = 'unreliableOther'
         except KeyError:
             # register does not exist in bank
-            rx_resp[1]['bcnt_value'] = 0.0
+            rx_resp[1]['bcnt_value'] = 0.0  # this is set to 0 here, but won't really be used
             rx_resp[1]['bcnt_valid'] = 'processError'
+        except ModbusCommError:
+            pass  # rx_resp has already been set before this error was raised, move on to finally statement
         finally:
             # don't need TupleSortingOn0 here since rx_resp is already of this type
             tx_queue.put(rx_resp, timeout=0.1)  # not sure about time here
