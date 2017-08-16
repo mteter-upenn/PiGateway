@@ -11,6 +11,7 @@ sufficient.
 import os
 import json
 # import random
+import argparse
 
 from bacpypes.debugging import ModuleLogger  # bacpypes_debugging,
 # from bacpypes.consolelogging import ConfigArgumentParser
@@ -50,10 +51,17 @@ def main():
 
     # object_name = 'LinuxLaptop'
     # object_id = 2459990
+
+    parser = argparse.ArgumentParser(description='Sets up BACnet device gateway as local test')
+
+    parser.add_argument('localip', type=str, help='Ip of the gateway and subnet mask X.X.X.X/Y')
+
+    args = parser.parse_args()
+
     max_apdu_len = 1024
     segmentation_support = 'segmentedBoth'
     vendor_id = 15
-    ip_address = '130.91.139.93/22'
+    ip_address = args.localip  # '130.91.139.93/22'
 
     # bank_to_out_queue = queue.Queue()
     out_to_bank_queue = queue.PriorityQueue()
