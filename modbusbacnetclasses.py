@@ -140,6 +140,8 @@ class ModbusAnalogInputObject(AnalogInputObject):
         self._values['reliability'] = 'communicationFailure'
         self._values['statusFlags']['fault'] = 1
         self._values['modbusCommErr'] = 19
+        self._values['outOfService'] = False
+        self._values['eventState'] = 'normal'
 
         # print(self._values['objectName'])
         # self._values['reliability'] = 'communicationFailure'

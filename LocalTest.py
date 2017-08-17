@@ -13,7 +13,7 @@ import json
 # import random
 import argparse
 
-from bacpypes.debugging import ModuleLogger  # bacpypes_debugging,
+from bacpypes.debugging import ModuleLogger, bacpypes_debugging
 # from bacpypes.consolelogging import ConfigArgumentParser
 
 from bacpypes.core import run
@@ -24,6 +24,7 @@ from bacpypes.core import run
 from bacpypes.basetypes import StatusFlags
 
 from bacpypes.app import BIPSimpleApplication
+from bacpypes.service.object import ReadWritePropertyMultipleServices
 # from bacpypes.service.device import LocalDeviceObject
 
 import modbusregisters
@@ -36,6 +37,12 @@ import queue
 # some debugging
 _debug = 0
 _log = ModuleLogger(globals())
+
+
+@bacpypes_debugging
+# ADDED ReadWritePropertyMultipleServices
+class ModbusSimpleApplication(BIPSimpleApplication, ReadWritePropertyMultipleServices):
+    pass
 
 
 #
@@ -55,8 +62,11 @@ def main():
     parser = argparse.ArgumentParser(description='Sets up BACnet device gateway as local test')
 
     parser.add_argument('localip', type=str, help='Ip of the gateway and subnet mask X.X.X.X/Y')
-
+    parser.add_argument('meterfile', type=str, help='Json file where meter meta data is stored')
+    parser.add_argument('--debugprint', action='store_true', help='Print potentially helpful data to cmd line.')
     args = parser.parse_args()
+
+    modbusregisters._debug_modbus_registers = args.debugprint
 
     max_apdu_len = 1024
     segmentation_support = 'segmentedBoth'
@@ -72,116 +82,118 @@ def main():
     dev_list = []
     app_list = []
 
-    for fn in os.listdir(os.getcwd() + '/DeviceList'):
-        if fn.endswith('.json') and fn.startswith('DGL'):
-            print(os.getcwd() + '/DeviceList/' + fn)
-            json_raw_str = open(os.getcwd() + '/DeviceList/' + fn, 'r')
-            map_dict = json.load(json_raw_str)
-            good_inst = reg_bank.add_instance(map_dict)
-            json_raw_str.close()
+    # for fn in os.listdir(os.getcwd() + '/DeviceList'):
+    #     if fn.endswith('.json') and fn.startswith('DGL'):
 
-            # "deviceName": "DRL small steam",
-            # "deviceInstance": 4000001,
-            # "deviceDescription": "DRL small steam meter- connected by NC valve to Towne through skirkanich",
-            # "deviceIP": "10.166.2.132",
-            # "modbusId": 10,
-            # "mapName": "KEP Steam",
-            # "mapRev": "a",
-            # "meterModelName": "KEP Steam",
-            # "modbusPort": 502,
-            # "holdingRegisters": {
-            if good_inst:
-                dev_name = map_dict['deviceName']
-                dev_inst = map_dict['deviceInstance']
-                dev_desc = map_dict['deviceDescription']
-                dev_ip = map_dict['deviceIP']
-                dev_mb_id = map_dict['modbusId']
-                dev_map_name = map_dict['mapName']
-                dev_map_rev = map_dict['mapRev']
-                dev_meter_model = map_dict['meterModelName']
-                dev_mb_port = map_dict['modbusPort']
+    print(os.getcwd() + '/' + args.meterfile)
+    json_raw_str = open(os.getcwd() + '/' + args.meterfile, 'r')
+    map_dict = json.load(json_raw_str)
+    good_inst = reg_bank.add_instance(map_dict)
+    json_raw_str.close()
 
-                dev_list.append(modbusbacnetclasses.ModbusLocalDevice(
-                    objectName=dev_name,
-                    objectIdentifier=('device', dev_inst),
-                    description=dev_desc,
-                    maxApduLengthAccepted=max_apdu_len,
-                    segmentationSupported=segmentation_support,
-                    vendorIdentifier=vendor_id,
-                    deviceIp=dev_ip,
-                    modbusId=dev_mb_id,
-                    modbusMapName=dev_map_name,
-                    modbusMapRev=dev_map_rev,
-                    deviceModelName=dev_meter_model,
-                    modbusPort=dev_mb_port,
-                ))
+    # "deviceName": "DRL small steam",
+    # "deviceInstance": 4000001,
+    # "deviceDescription": "DRL small steam meter- connected by NC valve to Towne through skirkanich",
+    # "deviceIP": "10.166.2.132",
+    # "modbusId": 10,
+    # "mapName": "KEP Steam",
+    # "mapRev": "a",
+    # "meterModelName": "KEP Steam",
+    # "modbusPort": 502,
+    # "holdingRegisters": {
+    if good_inst:
+        dev_name = map_dict['deviceName']
+        dev_inst = map_dict['deviceInstance']
+        dev_desc = map_dict['deviceDescription']
+        dev_ip = map_dict['deviceIP']
+        dev_mb_id = map_dict['modbusId']
+        dev_map_name = map_dict['mapName']
+        dev_map_rev = map_dict['mapRev']
+        dev_meter_model = map_dict['meterModelName']
+        dev_mb_port = map_dict['modbusPort']
 
-                app_list.append(BIPSimpleApplication(dev_list[-1], ip_address))
+        dev_list.append(modbusbacnetclasses.ModbusLocalDevice(
+            objectName=dev_name,
+            objectIdentifier=('device', dev_inst),
+            description=dev_desc,
+            maxApduLengthAccepted=max_apdu_len,
+            segmentationSupported=segmentation_support,
+            vendorIdentifier=vendor_id,
+            deviceIp=dev_ip,
+            modbusId=dev_mb_id,
+            modbusMapName=dev_map_name,
+            modbusMapRev=dev_map_rev,
+            deviceModelName=dev_meter_model,
+            modbusPort=dev_mb_port,
+        ))
 
-                services_supported = app_list[-1].get_services_supported()
-                dev_list[-1].protocolServicesSupported = services_supported.value
+        # app_list.append(BIPSimpleApplication(dev_list[-1], ip_address))
+        app_list.append(ModbusSimpleApplication(dev_list[-1], ip_address))
 
-                val_types = {'holdingRegisters': 3, 'inputRegisters': 4, 'coilBits': 1, 'inputBits': 2}
+        services_supported = app_list[-1].get_services_supported()
+        dev_list[-1].protocolServicesSupported = services_supported.value
 
-                # create objects for device
-                for val_type, mb_func in val_types.items():
-                    if val_type not in map_dict or val_type not in ['holdingRegisters', 'inputRegisters']:
-                        continue
+        val_types = {'holdingRegisters': 3, 'inputRegisters': 4, 'coilBits': 1, 'inputBits': 2}
 
-                    mb_dev_wo = map_dict[val_type]['wordOrder']
+        # create objects for device
+        for val_type, mb_func in val_types.items():
+            if val_type not in map_dict or val_type not in ['holdingRegisters', 'inputRegisters']:
+                continue
 
-                    for register in map_dict[val_type]['registers']:
-                        # "objectName": "heat_flow_steam",
-                        # "objectDescription": "Instantaneous heat flow of steam",
-                        # "objectInstance": 1,
-                        # "start": 1,
-                        # "format": "float",
-                        # "poll": "yes",
-                        # "unitsId": 157,
-                        # "pointScale": [0, 1, 0, 1]
+            mb_dev_wo = map_dict[val_type]['wordOrder']
 
-                        if register['poll'] != 'yes':
-                            continue
+            for register in map_dict[val_type]['registers']:
+                # "objectName": "heat_flow_steam",
+                # "objectDescription": "Instantaneous heat flow of steam",
+                # "objectInstance": 1,
+                # "start": 1,
+                # "format": "float",
+                # "poll": "yes",
+                # "unitsId": 157,
+                # "pointScale": [0, 1, 0, 1]
 
-                        obj_name = register['objectName']
-                        obj_description = register['objectDescription']
-                        obj_inst = register['objectInstance']
-                        obj_reg_start = register['start']
-                        obj_reg_format = register['format']
-                        if obj_reg_format in modbusregisters.one_register_formats:
-                            obj_num_regs = 1
-                        elif obj_reg_format in modbusregisters.two_register_formats:
-                            obj_num_regs = 2
-                        elif obj_reg_format in modbusregisters.three_register_formats:
-                            obj_num_regs = 3
-                        elif obj_reg_format in modbusregisters.four_register_formats:
-                            obj_num_regs = 4
-                        else:
-                            continue
-                        obj_units_id = register['unitsId']
-                        obj_pt_scale = register['pointScale']
-                        obj_eq_m = (obj_pt_scale[3] - obj_pt_scale[2])/(obj_pt_scale[1] - obj_pt_scale[0])
-                        obj_eq_b = obj_pt_scale[2] - obj_eq_m * obj_pt_scale[0]
-                        # print('m', obj_eq_m, 'b', obj_eq_b)
+                if register['poll'] != 'yes':
+                    continue
 
-                        maio = modbusbacnetclasses.ModbusAnalogInputObject(
-                            parent_device_inst=dev_inst,
-                            register_reader=reg_reader,
-                            rx_queue=queue.Queue(),
-                            objectIdentifier=('analogInput', obj_inst),
-                            objectName=obj_name,
-                            description=obj_description,
-                            modbusFunction=mb_func,
-                            registerStart=obj_reg_start,
-                            numberOfRegisters=obj_num_regs,
-                            registerFormat=obj_reg_format,
-                            wordOrder=mb_dev_wo,
-                            modbusScaling=modbusbacnetclasses.ModbusScaling([obj_eq_m, obj_eq_b]),
-                            units=obj_units_id,
-                            statusFlags=StatusFlags([0,1,0,0]),
-                        )
-                        # _log.debug("    - ravo: %r", ravo)
-                        app_list[-1].add_object(maio)
+                obj_name = register['objectName']
+                obj_description = register['objectDescription']
+                obj_inst = register['objectInstance']
+                obj_reg_start = register['start']
+                obj_reg_format = register['format']
+                if obj_reg_format in modbusregisters.one_register_formats:
+                    obj_num_regs = 1
+                elif obj_reg_format in modbusregisters.two_register_formats:
+                    obj_num_regs = 2
+                elif obj_reg_format in modbusregisters.three_register_formats:
+                    obj_num_regs = 3
+                elif obj_reg_format in modbusregisters.four_register_formats:
+                    obj_num_regs = 4
+                else:
+                    continue
+                obj_units_id = register['unitsId']
+                obj_pt_scale = register['pointScale']
+                obj_eq_m = (obj_pt_scale[3] - obj_pt_scale[2])/(obj_pt_scale[1] - obj_pt_scale[0])
+                obj_eq_b = obj_pt_scale[2] - obj_eq_m * obj_pt_scale[0]
+                # print('m', obj_eq_m, 'b', obj_eq_b)
+
+                maio = modbusbacnetclasses.ModbusAnalogInputObject(
+                    parent_device_inst=dev_inst,
+                    register_reader=reg_reader,
+                    rx_queue=queue.Queue(),
+                    objectIdentifier=('analogInput', obj_inst),
+                    objectName=obj_name,
+                    description=obj_description,
+                    modbusFunction=mb_func,
+                    registerStart=obj_reg_start,
+                    numberOfRegisters=obj_num_regs,
+                    registerFormat=obj_reg_format,
+                    wordOrder=mb_dev_wo,
+                    modbusScaling=modbusbacnetclasses.ModbusScaling([obj_eq_m, obj_eq_b]),
+                    units=obj_units_id,
+                    statusFlags=StatusFlags([0, 1, 0, 0]),
+                )
+                # _log.debug("    - ravo: %r", ravo)
+                app_list[-1].add_object(maio)
 
     # # this_device = modbusbacnetclasses.ModbusLocalDevice(
     # this_device = modbusbacnetclasses.ModbusLocalDevice(
