@@ -1,0 +1,7 @@
+# keep this folder empty in git
+
+# It is reserved to place the json meter settings files for individual meters.  
+# Theses files should not be on a global source like the repository, 
+# but maintained on an individual basis.
+*
+!.gitignore
