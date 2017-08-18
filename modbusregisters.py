@@ -20,54 +20,495 @@ class ModbusCommError(Exception):
 
 
 # class for bacnet points to use to access the stored values in the bank which runs in a different thread
-class RegisterReader:
-    def __init__(self, tx_queue):  # , rx_queue):
-        # global one_register_formats, two_register_formats, three_register_formats, four_register_formats, \
-        #     register_formats
-        self.tx_queue = tx_queue
-        # self.rx_queue = rx_queue
+# class RegisterReader:
+#     def __init__(self, tx_queue):  # , rx_queue):
+#         # global one_register_formats, two_register_formats, three_register_formats, four_register_formats, \
+#         #     register_formats
+#         self.tx_queue = tx_queue
+#         # self.rx_queue = rx_queue
+#
+#     def get_register_raw(self, dev_instance, mb_func, register, rx_queue, queue_timeout=100.0):
+#         self.get_register_format(dev_instance, mb_func, register, 1, 'uint16', 'lsw', rx_queue,
+#                                  queue_timeout=queue_timeout)
+#
+#     def get_register_format(self, dev_instance, mb_func, register, num_regs, reg_format, word_order, rx_queue,
+#                             queue_timeout=100.0):
+#         reg_bank_req = (0, {'type': 'bacnet', 'bcnt_inst': dev_instance, 'mb_func': mb_func, 'mb_reg': register,
+#                             'mb_num_regs': num_regs, 'mb_frmt': reg_format, 'mb_wo': word_order}, rx_queue)
+#         try:
+#             self.tx_queue.put(TupleSortingOn0(reg_bank_req), timeout=queue_timeout / 1000.0)
+#
+#             try:
+#                 reg_bank_resp = rx_queue.get(timeout=1.5 * queue_timeout / 1000.0)
+#             except Empty:
+#                 if _debug_modbus_registers: print('RegisterReader RETURNED EMPTY QUEUE')
+#                 return 0.0, 'processError'  # (value, reliability)
+#
+#             if self._check_dict_equality(reg_bank_req[1], reg_bank_resp[1]):
+#                 if _debug_modbus_registers: print('RegisterReader returned', reg_bank_resp)
+#                 return reg_bank_resp[1]['bcnt_value'], reg_bank_resp[1]['bcnt_valid']
+#
+#             if _debug_modbus_registers: print('RegisterReader HAD UNEQUAL DICTS')
+#             return 0.0, 'processError'  # (value, reliability)
+#         except Full:
+#             if _debug_modbus_registers: print('RegisterReader FULL QUEUE')
+#             return 0.0, 'processError'  # (value, reliability)
+#
+#     @staticmethod
+#     def _check_dict_equality(dict1, dict2, check_len=False):
+#         if check_len:
+#             if len(dict1) != len(dict2):
+#                 return False
+#
+#         for key, value in dict1.items():
+#             if key not in dict2:
+#                 return False
+#
+#             if dict1[key] != dict2[key]:
+#                 return False
+#
+#         return True
 
-    def get_register_raw(self, dev_instance, mb_func, register, rx_queue, queue_timeout=100.0):
-        self.get_register_format(dev_instance, mb_func, register, 1, 'uint16', 'lsw', rx_queue,
-                                 queue_timeout=queue_timeout)
 
-    def get_register_format(self, dev_instance, mb_func, register, num_regs, reg_format, word_order, rx_queue,
-                            queue_timeout=100.0):
-        reg_bank_req = (0, {'type': 'bacnet', 'bcnt_inst': dev_instance, 'mb_func': mb_func, 'mb_reg': register,
-                            'mb_num_regs': num_regs, 'mb_frmt': reg_format, 'mb_wo': word_order}, rx_queue)
-        try:
-            self.tx_queue.put(TupleSortingOn0(reg_bank_req), timeout=queue_timeout / 1000.0)
+class ModbusRequestLauncher(threading.Thread):
+    # This class takes a dictionary of modbus requests and routinely triggers them to run
+    _register_clusters = {}
+    _unq_ip_last_req = {}
 
+    def __init__(self, modbus_requests, unq_ip_last_req):
+        threading.Thread.__init__(self, daemon=True)
+        self._register_clusters = modbus_requests
+        self._unq_ip_last_req = unq_ip_last_req
+
+    def run(self):
+        # time_at_loop_start = time.time()
+        for reg_clstr, clstr_val in self._register_clusters.items():
+            # if clstr_val[1] < time_at_loop_start:
+            time.sleep(0.5)
+            cur_time = time.time()
+            new_expected_run_time = max(cur_time, self._unq_ip_last_req[clstr_val[3]] + 0.5)
+            self._unq_ip_last_req[clstr_val[3]] = new_expected_run_time
+            clstr_val[1] = new_expected_run_time + clstr_val[2] / 1000.0
+            clstr_val[0].start()
+        while True:
+            # time.sleep(5)
+            # time_at_loop_start = time.time()
+
+            # make all modbus requests
+            for reg_clstr, clstr_val in self._register_clusters.items():
+                cur_time = time.time()
+                if clstr_val[1] < cur_time:
+                    new_expected_run_time = max(cur_time, self._unq_ip_last_req[clstr_val[3]] + 0.5)
+                    self._unq_ip_last_req[clstr_val[3]] = new_expected_run_time
+                    clstr_val[1] = new_expected_run_time + clstr_val[2] / 1000.0
+                    clstr_val[0].run(delay=max(new_expected_run_time - cur_time, 0))
+
+
+def add_meter_instance_to_dicts(meter_map_dict, mb_to_bank_queue, object_bank, modbus_requests, unq_ip_last_req):
+    """
+    Parses meter object/register data into dictionaries of modbus requests and their values
+
+    :param meter_map_dict: Meter mapping of modbus registers to BACnet objects, typically taken from a json file.
+    :param mb_to_bank_queue: Queue to be given to Modbus requests to push data to a storage/format thread
+    :param object_bank: Dictionary of devices, Modbus function, objects and their values.
+    {device instance:
+        {Modbus function:
+            [Modbus function polling time,
+            {object instance: [value, time of request, error, time of error request],
+            object instance: [value, time of request, error, time of error request],
+            ...}
+            ],
+        ...},
+    ...}
+    :param modbus_requests: Dictionary of Modbus requests
+    {(device instance, cluster id): [Modbus request thread, expected start time, polling time, device ip],
+    ...}
+    :param unq_ip_last_req: Dictionary of ips and the last time a Modbus request was made to that unit.  If more than
+    one request is made very quickly the Modbus gateways typically do not handle it well.  It is best to therefore delay
+    requests made to the same ip and this stores the last time one was made.
+    :return: True or False based on success
+    """
+
+    func_regs = {}
+    bcnt_inst = meter_map_dict['deviceInstance']
+    if bcnt_inst in object_bank:  # bacnet instance already exists!
+        return False
+    clstr = 0
+    mb_ip = meter_map_dict['deviceIP']
+    mb_id = meter_map_dict['modbusId']
+    mb_port = meter_map_dict['modbusPort']
+    val_types = {'holdingRegisters': 3, 'inputRegisters': 4, 'coilBits': 1, 'inputBits': 2}
+
+    trigger_time = time.time()
+    if mb_ip not in unq_ip_last_req:
+        unq_ip_last_req[mb_ip] = trigger_time
+
+    for val_type, mb_func in val_types.items():
+        if val_type not in meter_map_dict:  # ('holdingRegisters', 'inputRegisters', 'coilBits', 'inputBits'):
+            continue
+
+        mb_polling_time = meter_map_dict[val_type]['pollingTime']
+        mb_request_timeout = meter_map_dict[val_type]['requestTimeout']
+        mb_grp_cons = True if meter_map_dict[val_type]['groupConsecutive'] == 'yes' else False
+        mb_grp_gaps = True if meter_map_dict[val_type]['groupGaps'] == 'yes' else False
+        mb_word_order = meter_map_dict[val_type]['wordOrder']
+
+        raw_objs = {}
+        raw_regs_list = []
+        for register in meter_map_dict[val_type]['registers']:
+            # don't bother storing points we won't look at
+            if register['poll'] == 'no':
+                continue
+
+            start_reg = register['start']
+            obj_inst = register['objectInstance']
+            num_regs = format_to_num_regs(register['format'])
+            obj_pt_scale = register['pointScale']
+            obj_eq_m = (obj_pt_scale[3] - obj_pt_scale[2]) / (obj_pt_scale[1] - obj_pt_scale[0])
+            obj_eq_b = obj_pt_scale[2] - obj_eq_m * obj_pt_scale[0]
+
+            # data, time of data retrieval, comm err, time of comm err, start reg, format, slope, intercept
+            raw_objs[obj_inst] = [0, 0.0, 19, 0.0, start_reg, register['format'], mb_word_order, obj_eq_m, obj_eq_b]
+            last_reg = start_reg + num_regs - 1
+            # for ii in range(start_reg, start_reg + num_regs):
+            #     raw_regs_list.append([ii, start_reg, last_reg, obj_inst])
+            raw_regs_list.append([start_reg, last_reg, obj_inst])
+
+        # set up dicts for self.register_bank{}
+        func_regs[mb_func] = [meter_map_dict[val_type]['pollingTime'], raw_objs]
+
+        raw_regs_list.sort()
+
+        clstr_reg_start = raw_regs_list[0][0]
+        # num_map_regs = len(raw_regs_list)
+        object_inst_list = []
+
+        if mb_grp_cons and mb_grp_gaps:  # clusters should span multiple points and registers we won't record
+            last_iter_reg = raw_regs_list[0][1]
+
+            for mb_obj in raw_regs_list:
+                object_inst_list.append(mb_obj[2])
+
+                if mb_obj[1] - clstr_reg_start > 125:  # if current object pushes over modbus register limit
+                    object_inst_list.pop()  # remove from list
+                    mb_poll_thread = ModbusPollThread(mb_to_bank_queue, bcnt_inst, mb_ip, mb_id, mb_func,
+                                                      clstr_reg_start, last_iter_reg - clstr_reg_start
+                                                      + 1, mb_request_timeout, mb_port, object_inst_list)
+                    modbus_requests[(bcnt_inst, clstr)] = [mb_poll_thread, trigger_time, mb_polling_time, mb_ip]
+
+                    object_inst_list = []
+                    clstr += 1  # tick clstr counter
+                    clstr_reg_start = mb_obj[0]  # set new start to current object
+                elif mb_obj[2] == raw_regs_list[-1][2]:  # last object
+                    last_iter_reg = mb_obj[1]
+                    mb_poll_thread = ModbusPollThread(mb_to_bank_queue, bcnt_inst, mb_ip, mb_id, mb_func,
+                                                      clstr_reg_start, last_iter_reg - clstr_reg_start
+                                                      + 1, mb_request_timeout, mb_port, object_inst_list)
+                    modbus_requests[(bcnt_inst, clstr)] = [mb_poll_thread, trigger_time, mb_polling_time, mb_ip]
+
+                last_iter_reg = mb_obj[1]
+        elif mb_grp_cons:
+            last_iter_reg = raw_regs_list[0][1]
+
+            for mb_obj in raw_regs_list:
+                object_inst_list.append(mb_obj[2])
+
+                if mb_obj[0] - last_iter_reg > 1 or mb_obj[1] - clstr_reg_start > 125:  # if there is a gap between
+                    # objects or if current object pushes over modbus register limit
+                    object_inst_list.pop()  # remove from list
+                    mb_poll_thread = ModbusPollThread(mb_to_bank_queue, bcnt_inst, mb_ip, mb_id, mb_func,
+                                                      clstr_reg_start, last_iter_reg - clstr_reg_start
+                                                      + 1, mb_request_timeout, mb_port, object_inst_list)
+                    modbus_requests[(bcnt_inst, clstr)] = [mb_poll_thread, trigger_time, mb_polling_time, mb_ip]
+
+                    object_inst_list = []
+                    clstr += 1  # tick clstr counter
+                    clstr_reg_start = mb_obj[0]  # set new start to current object
+                elif mb_obj[2] == raw_regs_list[-1][2]:  # last object
+                    last_iter_reg = mb_obj[1]
+                    mb_poll_thread = ModbusPollThread(mb_to_bank_queue, bcnt_inst, mb_ip, mb_id, mb_func,
+                                                      clstr_reg_start, last_iter_reg - clstr_reg_start
+                                                      + 1, mb_request_timeout, mb_port, object_inst_list)
+                    modbus_requests[(bcnt_inst, clstr)] = [mb_poll_thread, trigger_time, mb_polling_time, mb_ip]
+
+                last_iter_reg = mb_obj[1]
+        else:
+            for mb_obj in raw_regs_list:
+                mb_poll_thread = ModbusPollThread(mb_to_bank_queue, bcnt_inst, mb_ip, mb_id, mb_func,
+                                                  mb_obj[0], mb_obj[1] - mb_obj[0] + 1, mb_request_timeout, mb_port,
+                                                  [mb_obj[2]])
+                modbus_requests[(bcnt_inst, clstr)] = [mb_poll_thread, trigger_time, mb_polling_time, mb_ip]
+
+                clstr += 1
+        #     for ii in range(num_map_regs):
+        #         if raw_regs_list[ii][2] - clstr_reg_start > 125 or ii == num_map_regs - 1:
+        #             # ModbusPollThread(self.rx_queue, 4000031, '10.166.2.132', 10, 3, 1, 10, 1000, 502)
+        #             mb_poll_thread = ModbusPollThread(mb_to_bank_queue, bcnt_inst, mb_ip, mb_id, mb_func,
+        #                                               clstr_reg_start, last_iter_reg - clstr_reg_start
+        #                                               + 1, mb_request_timeout, mb_port, object_inst_list)
+        #             modbus_requests[(bcnt_inst, clstr)] = [mb_poll_thread, trigger_time, mb_polling_time, mb_ip]
+        #
+        #             # print('\nclstr:', clstr)
+        #             # print('start', clstr_reg_start)
+        #             # print('regs: ', last_iter_reg - clstr_reg_start + 1)
+        #             # print('end:', last_iter_reg)
+        #
+        #             clstr += 1
+        #             # if ii < num_map_regs - 1:
+        #             clstr_reg_start = raw_regs_list[ii][0]
+        #             object_inst_list = []
+        #
+        #         object_inst_list.append(raw_regs_list[ii][3])
+        #         last_iter_reg = raw_regs_list[ii][2]
+        # elif mb_grp_cons:
+        #     last_iter_reg = raw_regs_list[0][2]
+        #     for ii in range(num_map_regs):
+        #         if raw_regs_list[ii][0] - raw_regs_list[ii - 1][0] > 1 or ii == num_map_regs - 1 \
+        #                 or raw_regs_list[ii][2] - clstr_reg_start > 124:
+        #             mb_poll_thread = ModbusPollThread(mb_to_bank_queue, bcnt_inst, mb_ip, mb_id, mb_func,
+        #                                               clstr_reg_start, last_iter_reg - clstr_reg_start + 1,
+        #                                               mb_request_timeout, mb_port)
+        #             modbus_requests[(bcnt_inst, clstr)] = [mb_poll_thread, trigger_time, mb_polling_time, mb_ip]
+        #
+        #             # print('\nclstr:', clstr)
+        #             # print('start', clstr_reg_start)
+        #             # print('regs: ', last_iter_reg - clstr_reg_start + 1)
+        #             # print('end:', last_iter_reg)
+        #
+        #             clstr += 1
+        #             # if ii < num_map_regs - 1:
+        #             clstr_reg_start = raw_regs_list[ii][0]
+        #
+        #         last_iter_reg = raw_regs_list[ii][2]
+        # else:
+        #     clstr_reg_start = raw_regs_list[-1][1]
+        #     for ii in range(num_map_regs):
+        #         if raw_regs_list[ii][1] != clstr_reg_start:
+        #             mb_poll_thread = ModbusPollThread(mb_to_bank_queue, bcnt_inst, mb_ip, mb_id, mb_func,
+        #                                               raw_regs_list[ii][1], raw_regs_list[ii][2] -
+        #                                               raw_regs_list[ii][1] + 1, mb_request_timeout, mb_port)
+        #             modbus_requests[(bcnt_inst, clstr)] = [mb_poll_thread, trigger_time, mb_polling_time, mb_ip]
+        #
+        #             clstr += 1
+        #             clstr_reg_start = raw_regs_list[ii][1]
+
+        object_bank[bcnt_inst] = func_regs
+    return True
+
+
+class ModbusFormatAndStorage(threading.Thread):
+    _object_bank = {}
+
+    def __init__(self, mb_to_bank_queue, bank_to_bcnt_queue):
+        threading.Thread.__init__(self, daemon=True)
+
+        self.mb_to_bank_queue = mb_to_bank_queue
+        self.bank_to_bcnt_queue = bank_to_bcnt_queue
+
+    def run(self):
+        while True:
             try:
-                reg_bank_resp = rx_queue.get(timeout=1.5 * queue_timeout / 1000.0)
+                rx_resp = self.mb_to_bank_queue.get_nowait()  # no reason to hang here, just wait until next loop
+
+                self._mb_resp_to_dict(rx_resp)
+
             except Empty:
-                if _debug_modbus_registers: print('RegisterReader RETURNED EMPTY QUEUE')
-                return 0.0, 'processError'  # (value, reliability)
+                pass
 
-            if self._check_dict_equality(reg_bank_req[1], reg_bank_resp[1]):
-                if _debug_modbus_registers: print('RegisterReader returned', reg_bank_resp)
-                return reg_bank_resp[1]['bcnt_value'], reg_bank_resp[1]['bcnt_valid']
+    def _mb_resp_to_dict(self, rx_resp):
+        # {'type': 'modbus', 'bcnt_inst': self.bcnt_instance, 'mb_func': self.mb_func,
+        #  'mb_reg': self.register, 'mb_num_regs': self.num_regs, 'mb_otpt': otpt,
+        #  'mb_resp_time': time.time()}
+        bcnt_inst = rx_resp['bcnt_inst']
+        mb_func = rx_resp['mb_func']
 
-            if _debug_modbus_registers: print('RegisterReader HAD UNEQUAL DICTS')
-            return 0.0, 'processError'  # (value, reliability)
-        except Full:
-            if _debug_modbus_registers: print('RegisterReader FULL QUEUE')
-            return 0.0, 'processError'  # (value, reliability)
+        if bcnt_inst not in self._object_bank or mb_func not in self._object_bank[bcnt_inst]:
+            # modbus response does not coordinate with any devices in the bank
+            return
 
-    @staticmethod
-    def _check_dict_equality(dict1, dict2, check_len=False):
-        if check_len:
-            if len(dict1) != len(dict2):
-                return False
+        mb_start_reg = rx_resp['mb_reg']
+        # mb_num_regs = rx_resp['mb_num_regs']
+        mb_resp = rx_resp['mb_otpt']
+        mb_resp_time = rx_resp['mb_resp_time']
 
-        for key, value in dict1.items():
-            if key not in dict2:
-                return False
+        inst_reg_bank = self._object_bank[bcnt_inst][mb_func][1]
+        if mb_resp[0] == 'Err':
+            # if there is an error, don't update registers
+            for obj in rx_resp['obj_list']:
+                if obj in inst_reg_bank:
+                    inst_reg_bank[obj][2] = mb_resp[1]
+                    inst_reg_bank[obj][3] = mb_resp_time
+        else:
+            for obj in rx_resp['obj_list']:
+                if obj in inst_reg_bank:  # only add to reg bank where necessary
+                    obj_frmt = inst_reg_bank[obj][5]
+                    obj_regs = mb_resp[inst_reg_bank[obj][4] - mb_start_reg:
+                                       inst_reg_bank[obj][4] - mb_start_reg + format_to_num_regs(obj_frmt)]
+                    obj_val = format_registers_to_point(obj_regs, obj_frmt, inst_reg_bank[obj][6],
+                                                        inst_reg_bank[obj][7], inst_reg_bank[obj[8]])
 
-            if dict1[key] != dict2[key]:
-                return False
+                    inst_reg_bank[obj][0] = obj_val
+                    inst_reg_bank[obj][1] = mb_resp_time
+                    inst_reg_bank[obj][2] = 0
+                    inst_reg_bank[obj][3] = mb_resp_time
+                    # self.register_bank[bcnt_inst][mb_func][1][reg][0] = mb_resp[reg - mb_reg]
+                    # self.register_bank[bcnt_inst][mb_func][1][reg][1] = mb_resp_time
 
-        return True
+        return
+
+
+def format_to_num_regs(frmt):
+    if frmt in one_register_formats:
+        return 1
+    # elif frmt in two_register_formats:
+    #     return 2
+    elif frmt in three_register_formats:
+        return 3
+    elif frmt in four_register_formats:
+        return 4
+    else:
+        return 2
+
+
+def format_registers_to_point(registers, reg_frmt, reg_wo, slope=1, intercept=0):
+    num_regs = len(registers)
+    if num_regs < 1 or num_regs > 4:
+        return 0.0
+
+    if num_regs == 1 and reg_frmt not in one_register_formats:
+        return 0.0
+    if num_regs == 2 and reg_frmt not in two_register_formats:
+        return 0.0
+    if num_regs == 3 and reg_frmt not in three_register_formats:
+        return 0.0
+    if num_regs == 4 and reg_frmt not in four_register_formats:
+        return 0.0
+
+    pt_val = 0.0
+
+    if reg_frmt in one_register_formats:      # ('bin', 'hex', 'ascii', 'uint16', 'sint16', 'sm1k16', 'sm10k16'):
+        reg_0 = registers[0]
+        # for reg_0 in registers:  # , self.pckt[2::4], self.pckt[3::4]):
+        if reg_frmt == 'bin':
+            return bin(reg_0 * slope + intercept)
+        elif reg_frmt == 'hex':
+            return hex(reg_0 * slope + intercept)
+        elif reg_frmt == 'ascii':
+            byte_1 = bytes([reg_0 >> 8])
+            byte_0 = bytes([reg_0 & 0xff])
+            # b1 = bytes([56])
+            # b0 = bytes([70])
+            return byte_1.decode('ascii', 'ignore') + byte_0.decode('ascii', 'ignore')
+        elif reg_frmt == 'uint16':
+            pt_val = reg_0
+        elif reg_frmt == 'sint16':
+            pt_val = unpack('h', pack('H', reg_0))[0]
+        elif reg_frmt in ('sm1k16', 'sm10k16'):
+            mplr = 1
+            if reg_0 >> 15 == 1:
+                mplr = -1
+
+            pt_val = (reg_0 & 0x7fff) * mplr
+    elif reg_frmt in two_register_formats:
+        # ('float', 'uint32', 'sint32', 'um1k32', 'sm1k32', 'um10k32','sm10k32'):
+        if reg_wo == 'msw':
+            registers[::2], registers[1::2] = registers[1::2], registers[::2]
+
+        reg_0 = registers[0]
+        reg_1 = registers[1]
+        # for reg_0, reg_1 in zip(registers[::2], registers[1::2]):  # , self.pckt[2::4], self.pckt[3::4]):
+        if reg_frmt == 'uint32':
+            pt_val = (reg_1 << 16) | reg_0
+        elif reg_frmt == 'sint32':
+            pt_val = unpack('i', pack('I', (reg_1 << 16) | reg_0))[0]
+        elif reg_frmt == 'float':
+            pt_val = unpack('f', pack('I', (reg_1 << 16) | reg_0))[0]
+        elif reg_frmt == 'um1k32':
+            pt_val = reg_1 * 1000 + reg_0
+        elif reg_frmt == 'sm1k32':
+            if (reg_1 >> 15) == 1:
+                reg_1 = (reg_1 & 0x7fff)
+                pt_val = (-1) * (reg_1 * 1000 + reg_0)
+            else:
+                pt_val = reg_1 * 1000 + reg_0
+        elif reg_frmt == 'um10k32':
+            pt_val = reg_1 * 10000 + reg_0
+        elif reg_frmt == 'sm10k32':
+            if (reg_1 >> 15) == 1:
+                reg_1 = (reg_1 & 0x7fff)
+                pt_val = (-1) * (reg_1 * 10000 + reg_0)
+            else:
+                pt_val = reg_1 * 10000 + reg_0
+    elif reg_frmt in three_register_formats:  # ('uint48', 'sint48', 'um1k48', 'sm1k48', 'um10k48', 'sm10k48'):
+        if reg_wo == 'msw':
+            registers[::3], registers[2::3] = registers[2:3], registers[::3]
+
+        reg_0 = registers[0]
+        reg_1 = registers[1]
+        reg_2 = registers[2]
+        # for r0, r1, r2 in zip(regs[::3], regs[1::3], regs[2::3]):
+        if reg_frmt == 'uint48':
+            pt_val = (reg_2 << 32) | (reg_1 << 16) | reg_0
+        elif reg_frmt == 'sint48':
+            pt_val = 0.0
+        elif reg_frmt == 'um1k48':
+            pt_val = (reg_2 * (10 ** 6)) + (reg_1 * 1000) + reg_0
+        elif reg_frmt == 'sm1k48':
+            if (reg_2 >> 15) == 1:
+                reg_2 = (reg_2 & 0x7fff)
+                pt_val = (-1) * ((reg_2 * (10**6)) + (reg_1 * 1000) + reg_0)
+            else:
+                pt_val = (reg_2 * (10**6)) + (reg_1 * 1000) + reg_0
+        elif reg_frmt == 'um10k48':
+            pt_val = (reg_2 * (10**8)) + (reg_1 * 10000) + reg_0
+        elif reg_frmt == 'sm10k48':
+            if (reg_2 >> 15) == 1:
+                reg_2 = (reg_2 & 0x7fff)
+                pt_val = (-1) * ((reg_2 * (10**8)) + (reg_1 * 10000) + reg_0)
+            else:
+                pt_val = (reg_2 * (10**8)) + (reg_1 * 10000) + reg_0
+    elif reg_frmt in four_register_formats:
+        # ('uint64', 'sint64', 'um1k64', 'sm1k64', 'um10k64', 'sm10k64', 'engy', 'dbl')
+        if reg_wo == 'msw':
+            registers[::4], registers[1::4], registers[2::4], registers[3::4] = registers[3::4], registers[2::4], \
+                                                                                registers[1::4], registers[::4]
+
+        reg_0 = registers[0]
+        reg_1 = registers[1]
+        reg_2 = registers[2]
+        reg_3 = registers[3]
+        # for r0, r1, r2, r3 in zip(regs[::4], regs[1::4], regs[2::4], regs[3::4]):
+        if reg_frmt == 'uint64':
+            pt_val = (reg_3 << 48) | (reg_2 << 32) | (reg_1 << 16) | reg_0
+        elif reg_frmt == 'sint64':
+            pt_val = unpack('q', pack('Q', (reg_3 << 48) | (reg_2 << 32) | (reg_1 << 16) | reg_0))[0]
+        elif reg_frmt == 'um1k64':
+            pt_val = reg_3 * (10 ** 9) + reg_2 * (10 ** 6) + reg_1 * 1000 + reg_0
+        elif reg_frmt == 'sm1k64':
+            if (reg_3 >> 15) == 1:
+                reg_3 = (reg_3 & 0x7fff)
+                pt_val = (-1) * (reg_3 * (10 ** 9) + reg_2 * (10 ** 6) + reg_1 * 1000 + reg_0)
+            else:
+                pt_val = reg_3 * (10 ** 9) + reg_2 * (10 ** 6) + reg_1 * 1000 + reg_0
+        elif reg_frmt == 'um10k64':
+            pt_val = reg_3 * (10 ** 12) + reg_2 * (10 ** 8) + reg_1 * 10000 + reg_0
+        elif reg_frmt == 'sm10k64':
+            if (reg_3 >> 15) == 1:
+                reg_3 = (reg_3 & 0x7fff)
+                pt_val = (-1) * (reg_3 * (10 ** 12) + reg_2 * (10 ** 8) + reg_1 * 10000 + reg_0)
+            else:
+                pt_val = reg_3 * (10 ** 12) + reg_2 * (10 ** 8) + reg_1 * 10000 + reg_0
+        elif reg_frmt == 'engy':
+            # split r3 into engineering and mantissa bytes THIS WILL NOT HANDLE MANTISSA - DOCUMENTATION DOES
+            # NOT EXIST ON HOW TO HANDLE IT WITH THEIR UNITS
+
+            engr = unpack('b', pack('B', (reg_3 >> 8)))[0]
+            pt_val = ((reg_2 << 32) | (reg_1 << 16) | reg_0) * (10 ** engr)
+        elif reg_frmt == 'dbl':
+            pt_val = unpack('d', pack('Q', (reg_3 << 48) | (reg_2 << 32) | (reg_1 << 16) | reg_0))[0]
+    else:
+        pt_val = 0.0
+    return pt_val * slope + intercept
 
 
 class RegisterBankThread(threading.Thread):
@@ -89,134 +530,6 @@ class RegisterBankThread(threading.Thread):
         #  'mb_resp_time': time.time()}
         # self.register_clusters[(4000031, 0)] = [ModbusPollThread(self.rx_queue, 4000031, '10.166.2.132', 10, 3, 1, 10,
         #                                                          1000, 502), 1500491695.951605, 30000]
-
-    def add_instance(self, map_dict):  # , mb_timeout=2000, mb_port=502):
-        # mb_func = 3
-        # func_key = 'holdingRegisters'
-        func_regs = {}
-        bcnt_inst = map_dict['deviceInstance']
-        if bcnt_inst in self._register_bank:  # bacnet instance already exists!
-            return False
-        clstr = 0
-        mb_ip = map_dict['deviceIP']
-        mb_id = map_dict['modbusId']
-        mb_port = map_dict['modbusPort']
-        val_types = {'holdingRegisters': 3, 'inputRegisters': 4, 'coilBits': 1, 'inputBits': 2}
-
-        trigger_time = time.time()
-        if mb_ip not in self._unq_ip_last_req:
-            self._unq_ip_last_req[mb_ip] = trigger_time
-
-        for val_type, mb_func in val_types.items():
-            if val_type not in map_dict:  # ('holdingRegisters', 'inputRegisters', 'coilBits', 'inputBits'):
-                continue
-                # if key == 'holdingRegisters':
-                #     mb_func = 3
-                #     func_key = 'holdingRegisters'
-                # elif key == 'inputRegisters':
-                #     mb_func = 4
-                #     func_key = 'inputRegisters'
-                # elif key == 'coilBits':
-                #     mb_func = 1
-                #     func_key = 'coilBits'
-                # elif key == 'inputBits':
-                #     mb_func = 2
-                #     func_key = 'inputBits'
-
-            mb_polling_time = map_dict[val_type]['pollingTime']
-            mb_request_timeout = map_dict[val_type]['requestTimeout']
-            mb_grp_cons = True if map_dict[val_type]['groupConsecutive'] == 'yes' else False
-            mb_grp_gaps = True if map_dict[val_type]['groupGaps'] == 'yes' else False
-
-            raw_regs = {}
-            raw_regs_list = []
-            for register in map_dict[val_type]['registers']:
-                # don't bother storing points we won't look at
-                if register['poll'] == 'no':
-                    continue
-
-                start_reg = register['start']
-                num_regs = 1
-
-                if register['format'] in one_register_formats:
-                    num_regs = 1
-                elif register['format'] in two_register_formats:
-                    num_regs = 2
-                elif register['format'] in three_register_formats:
-                    num_regs = 3
-                elif register['format'] in four_register_formats:
-                    num_regs = 4
-
-                last_reg = start_reg + num_regs - 1
-                for ii in range(start_reg, start_reg + num_regs):
-                    raw_regs[ii] = [0, 0.0, 19, 0.0]  # data, time of data retrieval, comm err, time of comm err
-                    raw_regs_list.append([ii, start_reg, last_reg])
-
-            # set up dicts for self.register_bank{}
-            func_regs[mb_func] = [map_dict[val_type]['pollingTime'], raw_regs]
-
-            raw_regs_list.sort()
-
-            clstr_reg_start = raw_regs_list[0][0]
-            num_map_regs = len(raw_regs_list)
-
-            if mb_grp_cons and mb_grp_gaps:  # clusters should span multiple points and registers we won't record
-                last_iter_reg = raw_regs_list[0][2]
-                for ii in range(num_map_regs):
-                    if raw_regs_list[ii][2] - clstr_reg_start > 125 or ii == num_map_regs - 1:
-                        # ModbusPollThread(self.rx_queue, 4000031, '10.166.2.132', 10, 3, 1, 10, 1000, 502)
-                        mb_poll_thread = ModbusPollThread(self.rx_queue, bcnt_inst, mb_ip, mb_id, mb_func,
-                                                          clstr_reg_start, last_iter_reg - clstr_reg_start
-                                                          + 1, mb_request_timeout, mb_port)
-                        self._register_clusters[(bcnt_inst, clstr)] = [mb_poll_thread, trigger_time, mb_polling_time,
-                                                                       mb_ip]
-
-                        # print('\nclstr:', clstr)
-                        # print('start', clstr_reg_start)
-                        # print('regs: ', last_iter_reg - clstr_reg_start + 1)
-                        # print('end:', last_iter_reg)
-
-                        clstr += 1
-                        # if ii < num_map_regs - 1:
-                        clstr_reg_start = raw_regs_list[ii][0]
-
-                    last_iter_reg = raw_regs_list[ii][2]
-            elif mb_grp_cons:
-                last_iter_reg = raw_regs_list[0][2]
-                for ii in range(num_map_regs):
-                    if raw_regs_list[ii][0] - raw_regs_list[ii - 1][0] > 1 or ii == num_map_regs - 1 \
-                            or raw_regs_list[ii][2] - clstr_reg_start > 124:
-                        mb_poll_thread = ModbusPollThread(self.rx_queue, bcnt_inst, mb_ip, mb_id, mb_func,
-                                                          clstr_reg_start, last_iter_reg - clstr_reg_start
-                                                          + 1, mb_request_timeout, mb_port)
-                        self._register_clusters[(bcnt_inst, clstr)] = [mb_poll_thread, trigger_time, mb_polling_time,
-                                                                       mb_ip]
-
-                        # print('\nclstr:', clstr)
-                        # print('start', clstr_reg_start)
-                        # print('regs: ', last_iter_reg - clstr_reg_start + 1)
-                        # print('end:', last_iter_reg)
-
-                        clstr += 1
-                        # if ii < num_map_regs - 1:
-                        clstr_reg_start = raw_regs_list[ii][0]
-
-                    last_iter_reg = raw_regs_list[ii][2]
-            else:
-                clstr_reg_start = raw_regs_list[-1][1]
-                for ii in range(num_map_regs):
-                    if raw_regs_list[ii][1] != clstr_reg_start:
-                        mb_poll_thread = ModbusPollThread(self.rx_queue, bcnt_inst, mb_ip, mb_id, mb_func,
-                                                          raw_regs_list[ii][1], raw_regs_list[ii][2] -
-                                                          raw_regs_list[ii][1] + 1, mb_request_timeout, mb_port)
-                        self._register_clusters[(bcnt_inst, clstr)] = [mb_poll_thread, trigger_time, mb_polling_time,
-                                                                       mb_ip]
-
-                        clstr += 1
-                        clstr_reg_start = raw_regs_list[ii][1]
-
-        self._register_bank[bcnt_inst] = func_regs
-        return True
 
     def run(self):
         # time_at_loop_start = time.time()
@@ -481,7 +794,7 @@ class RegisterBankThread(threading.Thread):
 
 
 class ModbusPollThread(threading.Thread):
-    def __init__(self, tx_queue, bcnt_instance, ip, mb_id, mb_func, register, num_regs, timeout, port):
+    def __init__(self, tx_queue, bcnt_instance, ip, mb_id, mb_func, register, num_regs, timeout, port, object_list):
         threading.Thread.__init__(self, daemon=False)  # should finish with comms first
         self.tx_queue = tx_queue
 
@@ -494,6 +807,7 @@ class ModbusPollThread(threading.Thread):
         self.port = port
         self.bcnt_instance = bcnt_instance
         self.currently_running = False
+        self.object_list = object_list
 
     def run(self, delay=0.0):
         if not self.currently_running:
@@ -507,10 +821,10 @@ class ModbusPollThread(threading.Thread):
             # print('regs: ', self.num_regs)
             otpt = mb_poll(self.ip, self.mb_id, self.register, self.num_regs, func=self.mb_func, mb_to=self.timeout,
                            port=self.port, t='uint16')
-            tx_resp = (1, {'type': 'modbus', 'bcnt_inst': self.bcnt_instance, 'mb_func': self.mb_func,
+            tx_resp = {'type': 'modbus', 'bcnt_inst': self.bcnt_instance, 'mb_func': self.mb_func,
                            'mb_reg': self.register, 'mb_num_regs': self.num_regs, 'mb_otpt': otpt,
-                           'mb_resp_time': time.time()})
-            self.tx_queue.put(TupleSortingOn0(tx_resp), 0.1)
+                           'mb_resp_time': time.time(),'obj_list': self.object_list}
+            self.tx_queue.put(tx_resp, 0.1)
             if otpt[0] == 'Err':
                 if _debug_modbus_registers: print('got modbus error', otpt)
             else:
@@ -520,15 +834,15 @@ class ModbusPollThread(threading.Thread):
             if _debug_modbus_registers: print('currently running')
 
 
-class TupleSortingOn0(tuple):
-    def __lt__(self, rhs):
-        return self[0] < rhs[0]
-
-    def __gt__(self, rhs):
-        return self[0] > rhs[0]
-
-    def __le__(self, rhs):
-        return self[0] <= rhs[0]
-
-    def __ge__(self, rhs):
-        return self[0] >= rhs[0]
+# class TupleSortingOn0(tuple):
+#     def __lt__(self, rhs):
+#         return self[0] < rhs[0]
+#
+#     def __gt__(self, rhs):
+#         return self[0] > rhs[0]
+#
+#     def __le__(self, rhs):
+#         return self[0] <= rhs[0]
+#
+#     def __ge__(self, rhs):
+#         return self[0] >= rhs[0]
