@@ -79,8 +79,8 @@ def main():
     reg_reader = modbusregisters.RegisterReader(out_to_bank_queue)  # , bank_to_out_queue)
     reg_bank = modbusregisters.RegisterBankThread(out_to_bank_queue)
 
-    dev_list = []
-    app_list = []
+    dev_dict = {}
+    app_dict = {}
 
     # for fn in os.listdir(os.getcwd() + '/DeviceList'):
     #     if fn.endswith('.json') and fn.startswith('DGL'):
@@ -112,7 +112,7 @@ def main():
         dev_meter_model = map_dict['meterModelName']
         dev_mb_port = map_dict['modbusPort']
 
-        dev_list.append(modbusbacnetclasses.ModbusLocalDevice(
+        dev_dict[dev_inst] = modbusbacnetclasses.ModbusLocalDevice(
             objectName=dev_name,
             objectIdentifier=('device', dev_inst),
             description=dev_desc,
@@ -125,13 +125,13 @@ def main():
             modbusMapRev=dev_map_rev,
             deviceModelName=dev_meter_model,
             modbusPort=dev_mb_port,
-        ))
+        )
 
         # app_list.append(BIPSimpleApplication(dev_list[-1], ip_address))
-        app_list.append(ModbusSimpleApplication(dev_list[-1], ip_address))
+        app_dict[dev_inst] = ModbusSimpleApplication(dev_dict[dev_inst], ip_address)
 
-        services_supported = app_list[-1].get_services_supported()
-        dev_list[-1].protocolServicesSupported = services_supported.value
+        services_supported = app_dict[dev_inst].get_services_supported()
+        dev_dict[dev_inst].protocolServicesSupported = services_supported.value
 
         val_types = {'holdingRegisters': 3, 'inputRegisters': 4, 'coilBits': 1, 'inputBits': 2}
 
@@ -193,7 +193,7 @@ def main():
                     statusFlags=StatusFlags([0, 1, 0, 0]),
                 )
                 # _log.debug("    - ravo: %r", ravo)
-                app_list[-1].add_object(maio)
+                app_dict[dev_inst].add_object(maio)
 
     # # this_device = modbusbacnetclasses.ModbusLocalDevice(
     # this_device = modbusbacnetclasses.ModbusLocalDevice(

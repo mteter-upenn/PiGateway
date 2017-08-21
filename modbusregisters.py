@@ -1,4 +1,4 @@
-from queue import Empty, Full
+from queue import Empty  # , Full
 import threading
 from mbpy.mbpy import mb_poll
 import time
@@ -114,7 +114,7 @@ def add_meter_instance_to_dicts(meter_map_dict, mb_to_bank_queue, object_bank, m
     {device instance:
         {Modbus function:
             [Modbus function polling time,
-            {object instance: [value, time of request, error, time of error request],
+            {object instance: {value, time of request, error, time of error request},
             object instance: [value, time of request, error, time of error request],
             ...}
             ],
@@ -168,7 +168,10 @@ def add_meter_instance_to_dicts(meter_map_dict, mb_to_bank_queue, object_bank, m
             obj_eq_b = obj_pt_scale[2] - obj_eq_m * obj_pt_scale[0]
 
             # data, time of data retrieval, comm err, time of comm err, start reg, format, slope, intercept
-            raw_objs[obj_inst] = [0, 0.0, 19, 0.0, start_reg, register['format'], mb_word_order, obj_eq_m, obj_eq_b]
+            # raw_objs[obj_inst] = [0, 0.0, 19, 0.0, start_reg, register['format'], mb_word_order, obj_eq_m, obj_eq_b]
+            raw_objs[obj_inst] = {'value': 0, 'val_time': 0.0, 'error': 19, 'err_time': 0.0, 'register': start_reg,
+                                  'format': register['format'], 'word_order': mb_word_order, 'scale_slope': obj_eq_m,
+                                  'scale_int': obj_eq_b, 'obj_type': 'analogInput'}
             last_reg = start_reg + num_regs - 1
             # for ii in range(start_reg, start_reg + num_regs):
             #     raw_regs_list.append([ii, start_reg, last_reg, obj_inst])
@@ -299,61 +302,68 @@ def add_meter_instance_to_dicts(meter_map_dict, mb_to_bank_queue, object_bank, m
 class ModbusFormatAndStorage(threading.Thread):
     _object_bank = {}
 
-    def __init__(self, mb_to_bank_queue, bank_to_bcnt_queue):
+    def __init__(self, mb_to_bank_queue, bank_to_bcnt_queue, object_bank):
         threading.Thread.__init__(self, daemon=True)
 
         self.mb_to_bank_queue = mb_to_bank_queue
         self.bank_to_bcnt_queue = bank_to_bcnt_queue
+        self._object_bank = object_bank
 
     def run(self):
         while True:
             try:
                 rx_resp = self.mb_to_bank_queue.get_nowait()  # no reason to hang here, just wait until next loop
 
-                self._mb_resp_to_dict(rx_resp)
+                self._mb_resp_to_bcnt(rx_resp)
 
             except Empty:
                 pass
 
-    def _mb_resp_to_dict(self, rx_resp):
+    def _mb_resp_to_bcnt(self, rx_resp):
         # {'type': 'modbus', 'bcnt_inst': self.bcnt_instance, 'mb_func': self.mb_func,
         #  'mb_reg': self.register, 'mb_num_regs': self.num_regs, 'mb_otpt': otpt,
         #  'mb_resp_time': time.time()}
-        bcnt_inst = rx_resp['bcnt_inst']
+        dev_inst = rx_resp['bcnt_inst']
         mb_func = rx_resp['mb_func']
 
-        if bcnt_inst not in self._object_bank or mb_func not in self._object_bank[bcnt_inst]:
+        if dev_inst not in self._object_bank or mb_func not in self._object_bank[dev_inst]:
             # modbus response does not coordinate with any devices in the bank
             return
 
+        bcnt_q_dict = {dev_inst: {}}
         mb_start_reg = rx_resp['mb_reg']
         # mb_num_regs = rx_resp['mb_num_regs']
         mb_resp = rx_resp['mb_otpt']
         mb_resp_time = rx_resp['mb_resp_time']
 
-        inst_reg_bank = self._object_bank[bcnt_inst][mb_func][1]
+        inst_reg_bank = self._object_bank[dev_inst][mb_func][1]
         if mb_resp[0] == 'Err':
             # if there is an error, don't update registers
             for obj in rx_resp['obj_list']:
                 if obj in inst_reg_bank:
-                    inst_reg_bank[obj][2] = mb_resp[1]
-                    inst_reg_bank[obj][3] = mb_resp_time
+                    inst_reg_bank[obj]['error'] = mb_resp[1]
+                    inst_reg_bank[obj]['err_time'] = mb_resp_time
+
+                    bcnt_q_dict[(obj, inst_reg_bank[obj]['obj_type'])] = {'value': inst_reg_bank[obj]['value'],
+                                                                          'error': mb_resp[1]}
         else:
             for obj in rx_resp['obj_list']:
                 if obj in inst_reg_bank:  # only add to reg bank where necessary
-                    obj_frmt = inst_reg_bank[obj][5]
-                    obj_regs = mb_resp[inst_reg_bank[obj][4] - mb_start_reg:
-                                       inst_reg_bank[obj][4] - mb_start_reg + format_to_num_regs(obj_frmt)]
-                    obj_val = format_registers_to_point(obj_regs, obj_frmt, inst_reg_bank[obj][6],
-                                                        inst_reg_bank[obj][7], inst_reg_bank[obj[8]])
+                    obj_frmt = inst_reg_bank[obj]['format']
+                    obj_regs = mb_resp[inst_reg_bank[obj]['register'] - mb_start_reg:
+                                       inst_reg_bank[obj]['register'] - mb_start_reg + format_to_num_regs(obj_frmt)]
+                    obj_val = format_registers_to_point(obj_regs, obj_frmt, inst_reg_bank[obj]['word_order'],
+                                                        inst_reg_bank[obj]['scale_slope'],
+                                                        inst_reg_bank[obj['scale_int']])
 
-                    inst_reg_bank[obj][0] = obj_val
-                    inst_reg_bank[obj][1] = mb_resp_time
-                    inst_reg_bank[obj][2] = 0
-                    inst_reg_bank[obj][3] = mb_resp_time
-                    # self.register_bank[bcnt_inst][mb_func][1][reg][0] = mb_resp[reg - mb_reg]
-                    # self.register_bank[bcnt_inst][mb_func][1][reg][1] = mb_resp_time
+                    inst_reg_bank[obj]['value'] = obj_val
+                    inst_reg_bank[obj]['val_time'] = mb_resp_time
+                    inst_reg_bank[obj]['error'] = 0
+                    inst_reg_bank[obj]['err_time'] = mb_resp_time
 
+                    bcnt_q_dict[(obj, inst_reg_bank[obj]['obj_type'])] = {'value': obj_val, 'error': 0}
+
+        self.bank_to_bcnt_queue.put(bcnt_q_dict, timeout=0.1)
         return
 
 
@@ -511,286 +521,286 @@ def format_registers_to_point(registers, reg_frmt, reg_wo, slope=1, intercept=0)
     return pt_val * slope + intercept
 
 
-class RegisterBankThread(threading.Thread):
-    _register_bank = {}
-    _register_clusters = {}
-    _unq_ip_last_req = {}
-    # FOR TESTING
-    # register_bank = {4000031: {3: [30000, {1: [0, 0], 2: [0, 0], 3: [0, 0], 4: [0, 0], 9: [21312, 1500491665.951605],
-    #                            10: [17315, 1500491665.951605]}]}}
-
-    def __init__(self, rx_queue):  # tx_queue, rx_queue):
-        threading.Thread.__init__(self, daemon=True)
-        # self.tx_queue = tx_queue  # for bacnet responses
-        self.rx_queue = rx_queue  # for bacnet requests and modbus responses
-
-        # FOR TESTING (normally set in self.add_instance:
-        # {'type': 'modbus', 'bcnt_inst': self.bcnt_instance, 'mb_func': self.mb_func,
-        #  'mb_reg': self.register, 'mb_num_regs': self.num_regs, 'mb_otpt': otpt,
-        #  'mb_resp_time': time.time()}
-        # self.register_clusters[(4000031, 0)] = [ModbusPollThread(self.rx_queue, 4000031, '10.166.2.132', 10, 3, 1, 10,
-        #                                                          1000, 502), 1500491695.951605, 30000]
-
-    def run(self):
-        # time_at_loop_start = time.time()
-        for reg_clstr, clstr_val in self._register_clusters.items():
-            # if clstr_val[1] < time_at_loop_start:
-            time.sleep(0.5)
-            cur_time = time.time()
-            new_expected_run_time = max(cur_time, self._unq_ip_last_req[clstr_val[3]] + 0.5)
-            self._unq_ip_last_req[clstr_val[3]] = new_expected_run_time
-            clstr_val[1] = new_expected_run_time + clstr_val[2] / 1000.0
-            clstr_val[0].start()
-        while True:
-            # time.sleep(5)
-            # time_at_loop_start = time.time()
-
-            # make all modbus requests
-            for reg_clstr, clstr_val in self._register_clusters.items():
-                cur_time = time.time()
-                if clstr_val[1] < cur_time:
-                    new_expected_run_time = max(cur_time, self._unq_ip_last_req[clstr_val[3]] + 0.5)
-                    self._unq_ip_last_req[clstr_val[3]] = new_expected_run_time
-                    clstr_val[1] = new_expected_run_time + clstr_val[2] / 1000.0
-                    clstr_val[0].run(delay=max(new_expected_run_time - cur_time, 0))
-
-            try:
-                rx_resp = self.rx_queue.get_nowait()  # no reason to hang here, just wait until next loop
-
-                if rx_resp[1]['type'] == 'bacnet':
-                    self._handle_bacnet_request(rx_resp, time.time())
-                elif rx_resp[1]['type'] == 'modbus':
-                    self._handle_modbus_response(rx_resp)
-                    # pprint(self.register_bank)
-                else:
-                    # this should not happen
-                    pass
-
-            except Empty:
-                pass
-
-    def _handle_bacnet_request(self, rx_resp, time_at_loop_start):
-        # {'type': 'bacnet', 'bcnt_inst': dev_instance, 'mb_func': mb_func, 'mb_reg': register,
-        #  'mb_num_regs': num_regs, 'mb_frmt': reg_format, 'mb_wo': word_order}
-        resp_regs = []
-        bcnt_req_inst = rx_resp[1]['bcnt_inst']
-        bcnt_req_mb_func = rx_resp[1]['mb_func']
-        bcnt_req_reg = rx_resp[1]['mb_reg']
-        bcnt_req_num_regs = rx_resp[1]['mb_num_regs']
-        bcnt_req_format = rx_resp[1]['mb_frmt']
-        bcnt_req_wo = rx_resp[1]['mb_wo']
-        oldest_collec_time = time_at_loop_start
-        tx_queue = rx_resp[2]
-        # rx_resp.pop(2)
-        try:
-            for ii in range(bcnt_req_num_regs):
-                register_vals = self._register_bank[bcnt_req_inst][bcnt_req_mb_func][1][bcnt_req_reg + ii]
-                if register_vals[2] != 0:
-                    # error in last comm
-                    rx_resp[1]['bcnt_value'] = register_vals[2]  # return the comm error
-                    rx_resp[1]['bcnt_valid'] = 'communicationFailure'
-                    # break  # exit the try and head to finally
-                    raise ModbusCommError('Modbus communications error ' + str(register_vals[2]))
-                else:
-                    resp_regs.append(register_vals[0])
-                    oldest_collec_time = min(oldest_collec_time, register_vals[1])
-
-            bcnt_pt_val = self._format_registers_to_point(resp_regs, bcnt_req_format, bcnt_req_wo)
-            rx_resp[1]['bcnt_value'] = bcnt_pt_val
-            rx_resp[1]['bcnt_valid'] = 'noFaultDetected'
-
-            # check if a long period of time has passed between now and the oldest bit of data found
-            if (time_at_loop_start - oldest_collec_time) > \
-                    (self._register_bank[bcnt_req_inst][bcnt_req_mb_func][0] * 3 / 1000.0):
-                # modbus values from long ago
-                rx_resp[1]['bcnt_valid'] = 'unreliableOther'
-        except KeyError:
-            # register does not exist in bank
-            rx_resp[1]['bcnt_value'] = 0.0  # this is set to 0 here, but won't really be used
-            rx_resp[1]['bcnt_valid'] = 'processError'
-        except ModbusCommError:
-            pass  # rx_resp has already been set before this error was raised, move on to finally statement
-        finally:
-            # don't need TupleSortingOn0 here since rx_resp is already of this type
-            tx_queue.put(rx_resp, timeout=0.1)  # not sure about time here
-
-    def _handle_modbus_response(self, rx_resp):
-        # {'type': 'modbus', 'bcnt_inst': self.bcnt_instance, 'mb_func': self.mb_func,
-        #  'mb_reg': self.register, 'mb_num_regs': self.num_regs, 'mb_otpt': otpt,
-        #  'mb_resp_time': time.time()}
-        bcnt_inst = rx_resp[1]['bcnt_inst']
-        mb_func = rx_resp[1]['mb_func']
-
-        if bcnt_inst not in self._register_bank or mb_func not in self._register_bank[bcnt_inst]:
-            # modbus response does not coordinate with any devices in the bank
-            return
-
-        mb_reg = rx_resp[1]['mb_reg']
-        mb_num_regs = rx_resp[1]['mb_num_regs']
-        mb_resp = rx_resp[1]['mb_otpt']
-        mb_resp_time = rx_resp[1]['mb_resp_time']
-
-        inst_reg_bank = self._register_bank[bcnt_inst][mb_func][1]
-        if mb_resp[0] == 'Err':
-            # if there is an error, don't update registers
-            for reg in range(mb_reg, mb_reg + mb_num_regs):
-                if reg in inst_reg_bank:  # only add to reg bank where necessary
-                    # inst_reg_bank[reg][0] = mb_resp[reg - mb_reg]
-                    # inst_reg_bank[reg][1] = mb_resp_time
-                    inst_reg_bank[reg][2] = mb_resp[1]
-                    inst_reg_bank[reg][3] = mb_resp_time
-        else:
-            for reg in range(mb_reg, mb_reg + mb_num_regs):
-                if reg in inst_reg_bank:  # only add to reg bank where necessary
-                    inst_reg_bank[reg][0] = mb_resp[reg - mb_reg]
-                    inst_reg_bank[reg][1] = mb_resp_time
-                    inst_reg_bank[reg][2] = 0
-                    inst_reg_bank[reg][3] = mb_resp_time
-                    # self.register_bank[bcnt_inst][mb_func][1][reg][0] = mb_resp[reg - mb_reg]
-                    # self.register_bank[bcnt_inst][mb_func][1][reg][1] = mb_resp_time
-
-        return
-
-    @staticmethod
-    def _format_registers_to_point(registers, reg_frmt, reg_wo):
-        num_regs = len(registers)
-        if num_regs < 1 or num_regs > 4:
-            return 0.0
-
-        if num_regs == 1 and reg_frmt not in one_register_formats:
-            return 0.0
-        if num_regs == 2 and reg_frmt not in two_register_formats:
-            return 0.0
-        if num_regs == 3 and reg_frmt not in three_register_formats:
-            return 0.0
-        if num_regs == 4 and reg_frmt not in four_register_formats:
-            return 0.0
-
-        pt_val = 0.0
-
-        if reg_frmt in one_register_formats:      # ('bin', 'hex', 'ascii', 'uint16', 'sint16', 'sm1k16', 'sm10k16'):
-            reg_0 = registers[0]
-            # for reg_0 in registers:  # , self.pckt[2::4], self.pckt[3::4]):
-            if reg_frmt == 'bin':
-                pt_val = bin(reg_0)
-            elif reg_frmt == 'hex':
-                pt_val = hex(reg_0)
-            elif reg_frmt == 'ascii':
-                byte_1 = bytes([reg_0 >> 8])
-                byte_0 = bytes([reg_0 & 0xff])
-                # b1 = bytes([56])
-                # b0 = bytes([70])
-                pt_val = byte_1.decode('ascii', 'ignore') + byte_0.decode('ascii', 'ignore')
-            elif reg_frmt == 'uint16':
-                pt_val = reg_0
-            elif reg_frmt == 'sint16':
-                pt_val = unpack('h', pack('H', reg_0))[0]
-            elif reg_frmt in ('sm1k16', 'sm10k16'):
-                mplr = 1
-                if reg_0 >> 15 == 1:
-                    mplr = -1
-
-                pt_val = (reg_0 & 0x7fff) * mplr
-        elif reg_frmt in two_register_formats:
-            # ('float', 'uint32', 'sint32', 'um1k32', 'sm1k32', 'um10k32','sm10k32'):
-            if reg_wo == 'msw':
-                registers[::2], registers[1::2] = registers[1::2], registers[::2]
-
-            reg_0 = registers[0]
-            reg_1 = registers[1]
-            # for reg_0, reg_1 in zip(registers[::2], registers[1::2]):  # , self.pckt[2::4], self.pckt[3::4]):
-            if reg_frmt == 'uint32':
-                pt_val = (reg_1 << 16) | reg_0
-            elif reg_frmt == 'sint32':
-                pt_val = unpack('i', pack('I', (reg_1 << 16) | reg_0))[0]
-            elif reg_frmt == 'float':
-                pt_val = unpack('f', pack('I', (reg_1 << 16) | reg_0))[0]
-            elif reg_frmt == 'um1k32':
-                pt_val = reg_1 * 1000 + reg_0
-            elif reg_frmt == 'sm1k32':
-                if (reg_1 >> 15) == 1:
-                    reg_1 = (reg_1 & 0x7fff)
-                    pt_val = (-1) * (reg_1 * 1000 + reg_0)
-                else:
-                    pt_val = reg_1 * 1000 + reg_0
-            elif reg_frmt == 'um10k32':
-                pt_val = reg_1 * 10000 + reg_0
-            elif reg_frmt == 'sm10k32':
-                if (reg_1 >> 15) == 1:
-                    reg_1 = (reg_1 & 0x7fff)
-                    pt_val = (-1) * (reg_1 * 10000 + reg_0)
-                else:
-                    pt_val = reg_1 * 10000 + reg_0
-        elif reg_frmt in three_register_formats:  # ('uint48', 'sint48', 'um1k48', 'sm1k48', 'um10k48', 'sm10k48'):
-            if reg_wo == 'msw':
-                registers[::3], registers[2::3] = registers[2:3], registers[::3]
-
-            reg_0 = registers[0]
-            reg_1 = registers[1]
-            reg_2 = registers[2]
-            # for r0, r1, r2 in zip(regs[::3], regs[1::3], regs[2::3]):
-            if reg_frmt == 'uint48':
-                pt_val = (reg_2 << 32) | (reg_1 << 16) | reg_0
-            elif reg_frmt == 'sint48':
-                pt_val = 0.0
-            elif reg_frmt == 'um1k48':
-                pt_val = (reg_2 * (10 ** 6)) + (reg_1 * 1000) + reg_0
-            elif reg_frmt == 'sm1k48':
-                if (reg_2 >> 15) == 1:
-                    reg_2 = (reg_2 & 0x7fff)
-                    pt_val = (-1) * ((reg_2 * (10**6)) + (reg_1 * 1000) + reg_0)
-                else:
-                    pt_val = (reg_2 * (10**6)) + (reg_1 * 1000) + reg_0
-            elif reg_frmt == 'um10k48':
-                pt_val = (reg_2 * (10**8)) + (reg_1 * 10000) + reg_0
-            elif reg_frmt == 'sm10k48':
-                if (reg_2 >> 15) == 1:
-                    reg_2 = (reg_2 & 0x7fff)
-                    pt_val = (-1) * ((reg_2 * (10**8)) + (reg_1 * 10000) + reg_0)
-                else:
-                    pt_val = (reg_2 * (10**8)) + (reg_1 * 10000) + reg_0
-        elif reg_frmt in four_register_formats:
-            # ('uint64', 'sint64', 'um1k64', 'sm1k64', 'um10k64', 'sm10k64', 'engy', 'dbl')
-            if reg_wo == 'msw':
-                registers[::4], registers[1::4], registers[2::4], registers[3::4] = registers[3::4], registers[2::4], \
-                                                                                    registers[1::4], registers[::4]
-
-            reg_0 = registers[0]
-            reg_1 = registers[1]
-            reg_2 = registers[2]
-            reg_3 = registers[3]
-            # for r0, r1, r2, r3 in zip(regs[::4], regs[1::4], regs[2::4], regs[3::4]):
-            if reg_frmt == 'uint64':
-                pt_val = (reg_3 << 48) | (reg_2 << 32) | (reg_1 << 16) | reg_0
-            elif reg_frmt == 'sint64':
-                pt_val = unpack('q', pack('Q', (reg_3 << 48) | (reg_2 << 32) | (reg_1 << 16) | reg_0))[0]
-            elif reg_frmt == 'um1k64':
-                pt_val = reg_3 * (10 ** 9) + reg_2 * (10 ** 6) + reg_1 * 1000 + reg_0
-            elif reg_frmt == 'sm1k64':
-                if (reg_3 >> 15) == 1:
-                    reg_3 = (reg_3 & 0x7fff)
-                    pt_val = (-1) * (reg_3 * (10 ** 9) + reg_2 * (10 ** 6) + reg_1 * 1000 + reg_0)
-                else:
-                    pt_val = reg_3 * (10 ** 9) + reg_2 * (10 ** 6) + reg_1 * 1000 + reg_0
-            elif reg_frmt == 'um10k64':
-                pt_val = reg_3 * (10 ** 12) + reg_2 * (10 ** 8) + reg_1 * 10000 + reg_0
-            elif reg_frmt == 'sm10k64':
-                if (reg_3 >> 15) == 1:
-                    reg_3 = (reg_3 & 0x7fff)
-                    pt_val = (-1) * (reg_3 * (10 ** 12) + reg_2 * (10 ** 8) + reg_1 * 10000 + reg_0)
-                else:
-                    pt_val = reg_3 * (10 ** 12) + reg_2 * (10 ** 8) + reg_1 * 10000 + reg_0
-            elif reg_frmt == 'engy':
-                # split r3 into engineering and mantissa bytes THIS WILL NOT HANDLE MANTISSA - DOCUMENTATION DOES
-                # NOT EXIST ON HOW TO HANDLE IT WITH THEIR UNITS
-
-                engr = unpack('b', pack('B', (reg_3 >> 8)))[0]
-                pt_val = ((reg_2 << 32) | (reg_1 << 16) | reg_0) * (10 ** engr)
-            elif reg_frmt == 'dbl':
-                pt_val = unpack('d', pack('Q', (reg_3 << 48) | (reg_2 << 32) | (reg_1 << 16) | reg_0))[0]
-        else:
-            pt_val = 0.0
-        return pt_val
+# class RegisterBankThread(threading.Thread):
+#     _register_bank = {}
+#     _register_clusters = {}
+#     _unq_ip_last_req = {}
+#     # FOR TESTING
+#     # register_bank = {4000031: {3: [30000, {1: [0, 0], 2: [0, 0], 3: [0, 0], 4: [0, 0], 9: [21312, 1500491665.951605],
+#     #                            10: [17315, 1500491665.951605]}]}}
+#
+#     def __init__(self, rx_queue):  # tx_queue, rx_queue):
+#         threading.Thread.__init__(self, daemon=True)
+#         # self.tx_queue = tx_queue  # for bacnet responses
+#         self.rx_queue = rx_queue  # for bacnet requests and modbus responses
+#
+#         # FOR TESTING (normally set in self.add_instance:
+#         # {'type': 'modbus', 'bcnt_inst': self.bcnt_instance, 'mb_func': self.mb_func,
+#         #  'mb_reg': self.register, 'mb_num_regs': self.num_regs, 'mb_otpt': otpt,
+#         #  'mb_resp_time': time.time()}
+#         # self.register_clusters[(4000031, 0)] = [ModbusPollThread(self.rx_queue, 4000031, '10.166.2.132', 10, 3, 1, 10,
+#         #                                                          1000, 502), 1500491695.951605, 30000]
+#
+#     def run(self):
+#         # time_at_loop_start = time.time()
+#         for reg_clstr, clstr_val in self._register_clusters.items():
+#             # if clstr_val[1] < time_at_loop_start:
+#             time.sleep(0.5)
+#             cur_time = time.time()
+#             new_expected_run_time = max(cur_time, self._unq_ip_last_req[clstr_val[3]] + 0.5)
+#             self._unq_ip_last_req[clstr_val[3]] = new_expected_run_time
+#             clstr_val[1] = new_expected_run_time + clstr_val[2] / 1000.0
+#             clstr_val[0].start()
+#         while True:
+#             # time.sleep(5)
+#             # time_at_loop_start = time.time()
+#
+#             # make all modbus requests
+#             for reg_clstr, clstr_val in self._register_clusters.items():
+#                 cur_time = time.time()
+#                 if clstr_val[1] < cur_time:
+#                     new_expected_run_time = max(cur_time, self._unq_ip_last_req[clstr_val[3]] + 0.5)
+#                     self._unq_ip_last_req[clstr_val[3]] = new_expected_run_time
+#                     clstr_val[1] = new_expected_run_time + clstr_val[2] / 1000.0
+#                     clstr_val[0].run(delay=max(new_expected_run_time - cur_time, 0))
+#
+#             try:
+#                 rx_resp = self.rx_queue.get_nowait()  # no reason to hang here, just wait until next loop
+#
+#                 if rx_resp[1]['type'] == 'bacnet':
+#                     self._handle_bacnet_request(rx_resp, time.time())
+#                 elif rx_resp[1]['type'] == 'modbus':
+#                     self._handle_modbus_response(rx_resp)
+#                     # pprint(self.register_bank)
+#                 else:
+#                     # this should not happen
+#                     pass
+#
+#             except Empty:
+#                 pass
+#
+#     def _handle_bacnet_request(self, rx_resp, time_at_loop_start):
+#         # {'type': 'bacnet', 'bcnt_inst': dev_instance, 'mb_func': mb_func, 'mb_reg': register,
+#         #  'mb_num_regs': num_regs, 'mb_frmt': reg_format, 'mb_wo': word_order}
+#         resp_regs = []
+#         bcnt_req_inst = rx_resp[1]['bcnt_inst']
+#         bcnt_req_mb_func = rx_resp[1]['mb_func']
+#         bcnt_req_reg = rx_resp[1]['mb_reg']
+#         bcnt_req_num_regs = rx_resp[1]['mb_num_regs']
+#         bcnt_req_format = rx_resp[1]['mb_frmt']
+#         bcnt_req_wo = rx_resp[1]['mb_wo']
+#         oldest_collec_time = time_at_loop_start
+#         tx_queue = rx_resp[2]
+#         # rx_resp.pop(2)
+#         try:
+#             for ii in range(bcnt_req_num_regs):
+#                 register_vals = self._register_bank[bcnt_req_inst][bcnt_req_mb_func][1][bcnt_req_reg + ii]
+#                 if register_vals[2] != 0:
+#                     # error in last comm
+#                     rx_resp[1]['bcnt_value'] = register_vals[2]  # return the comm error
+#                     rx_resp[1]['bcnt_valid'] = 'communicationFailure'
+#                     # break  # exit the try and head to finally
+#                     raise ModbusCommError('Modbus communications error ' + str(register_vals[2]))
+#                 else:
+#                     resp_regs.append(register_vals[0])
+#                     oldest_collec_time = min(oldest_collec_time, register_vals[1])
+#
+#             bcnt_pt_val = self._format_registers_to_point(resp_regs, bcnt_req_format, bcnt_req_wo)
+#             rx_resp[1]['bcnt_value'] = bcnt_pt_val
+#             rx_resp[1]['bcnt_valid'] = 'noFaultDetected'
+#
+#             # check if a long period of time has passed between now and the oldest bit of data found
+#             if (time_at_loop_start - oldest_collec_time) > \
+#                     (self._register_bank[bcnt_req_inst][bcnt_req_mb_func][0] * 3 / 1000.0):
+#                 # modbus values from long ago
+#                 rx_resp[1]['bcnt_valid'] = 'unreliableOther'
+#         except KeyError:
+#             # register does not exist in bank
+#             rx_resp[1]['bcnt_value'] = 0.0  # this is set to 0 here, but won't really be used
+#             rx_resp[1]['bcnt_valid'] = 'processError'
+#         except ModbusCommError:
+#             pass  # rx_resp has already been set before this error was raised, move on to finally statement
+#         finally:
+#             # don't need TupleSortingOn0 here since rx_resp is already of this type
+#             tx_queue.put(rx_resp, timeout=0.1)  # not sure about time here
+#
+#     def _handle_modbus_response(self, rx_resp):
+#         # {'type': 'modbus', 'bcnt_inst': self.bcnt_instance, 'mb_func': self.mb_func,
+#         #  'mb_reg': self.register, 'mb_num_regs': self.num_regs, 'mb_otpt': otpt,
+#         #  'mb_resp_time': time.time()}
+#         bcnt_inst = rx_resp[1]['bcnt_inst']
+#         mb_func = rx_resp[1]['mb_func']
+#
+#         if bcnt_inst not in self._register_bank or mb_func not in self._register_bank[bcnt_inst]:
+#             # modbus response does not coordinate with any devices in the bank
+#             return
+#
+#         mb_reg = rx_resp[1]['mb_reg']
+#         mb_num_regs = rx_resp[1]['mb_num_regs']
+#         mb_resp = rx_resp[1]['mb_otpt']
+#         mb_resp_time = rx_resp[1]['mb_resp_time']
+#
+#         inst_reg_bank = self._register_bank[bcnt_inst][mb_func][1]
+#         if mb_resp[0] == 'Err':
+#             # if there is an error, don't update registers
+#             for reg in range(mb_reg, mb_reg + mb_num_regs):
+#                 if reg in inst_reg_bank:  # only add to reg bank where necessary
+#                     # inst_reg_bank[reg][0] = mb_resp[reg - mb_reg]
+#                     # inst_reg_bank[reg][1] = mb_resp_time
+#                     inst_reg_bank[reg][2] = mb_resp[1]
+#                     inst_reg_bank[reg][3] = mb_resp_time
+#         else:
+#             for reg in range(mb_reg, mb_reg + mb_num_regs):
+#                 if reg in inst_reg_bank:  # only add to reg bank where necessary
+#                     inst_reg_bank[reg][0] = mb_resp[reg - mb_reg]
+#                     inst_reg_bank[reg][1] = mb_resp_time
+#                     inst_reg_bank[reg][2] = 0
+#                     inst_reg_bank[reg][3] = mb_resp_time
+#                     # self.register_bank[bcnt_inst][mb_func][1][reg][0] = mb_resp[reg - mb_reg]
+#                     # self.register_bank[bcnt_inst][mb_func][1][reg][1] = mb_resp_time
+#
+#         return
+#
+#     @staticmethod
+#     def _format_registers_to_point(registers, reg_frmt, reg_wo):
+#         num_regs = len(registers)
+#         if num_regs < 1 or num_regs > 4:
+#             return 0.0
+#
+#         if num_regs == 1 and reg_frmt not in one_register_formats:
+#             return 0.0
+#         if num_regs == 2 and reg_frmt not in two_register_formats:
+#             return 0.0
+#         if num_regs == 3 and reg_frmt not in three_register_formats:
+#             return 0.0
+#         if num_regs == 4 and reg_frmt not in four_register_formats:
+#             return 0.0
+#
+#         pt_val = 0.0
+#
+#         if reg_frmt in one_register_formats:      # ('bin', 'hex', 'ascii', 'uint16', 'sint16', 'sm1k16', 'sm10k16'):
+#             reg_0 = registers[0]
+#             # for reg_0 in registers:  # , self.pckt[2::4], self.pckt[3::4]):
+#             if reg_frmt == 'bin':
+#                 pt_val = bin(reg_0)
+#             elif reg_frmt == 'hex':
+#                 pt_val = hex(reg_0)
+#             elif reg_frmt == 'ascii':
+#                 byte_1 = bytes([reg_0 >> 8])
+#                 byte_0 = bytes([reg_0 & 0xff])
+#                 # b1 = bytes([56])
+#                 # b0 = bytes([70])
+#                 pt_val = byte_1.decode('ascii', 'ignore') + byte_0.decode('ascii', 'ignore')
+#             elif reg_frmt == 'uint16':
+#                 pt_val = reg_0
+#             elif reg_frmt == 'sint16':
+#                 pt_val = unpack('h', pack('H', reg_0))[0]
+#             elif reg_frmt in ('sm1k16', 'sm10k16'):
+#                 mplr = 1
+#                 if reg_0 >> 15 == 1:
+#                     mplr = -1
+#
+#                 pt_val = (reg_0 & 0x7fff) * mplr
+#         elif reg_frmt in two_register_formats:
+#             # ('float', 'uint32', 'sint32', 'um1k32', 'sm1k32', 'um10k32','sm10k32'):
+#             if reg_wo == 'msw':
+#                 registers[::2], registers[1::2] = registers[1::2], registers[::2]
+#
+#             reg_0 = registers[0]
+#             reg_1 = registers[1]
+#             # for reg_0, reg_1 in zip(registers[::2], registers[1::2]):  # , self.pckt[2::4], self.pckt[3::4]):
+#             if reg_frmt == 'uint32':
+#                 pt_val = (reg_1 << 16) | reg_0
+#             elif reg_frmt == 'sint32':
+#                 pt_val = unpack('i', pack('I', (reg_1 << 16) | reg_0))[0]
+#             elif reg_frmt == 'float':
+#                 pt_val = unpack('f', pack('I', (reg_1 << 16) | reg_0))[0]
+#             elif reg_frmt == 'um1k32':
+#                 pt_val = reg_1 * 1000 + reg_0
+#             elif reg_frmt == 'sm1k32':
+#                 if (reg_1 >> 15) == 1:
+#                     reg_1 = (reg_1 & 0x7fff)
+#                     pt_val = (-1) * (reg_1 * 1000 + reg_0)
+#                 else:
+#                     pt_val = reg_1 * 1000 + reg_0
+#             elif reg_frmt == 'um10k32':
+#                 pt_val = reg_1 * 10000 + reg_0
+#             elif reg_frmt == 'sm10k32':
+#                 if (reg_1 >> 15) == 1:
+#                     reg_1 = (reg_1 & 0x7fff)
+#                     pt_val = (-1) * (reg_1 * 10000 + reg_0)
+#                 else:
+#                     pt_val = reg_1 * 10000 + reg_0
+#         elif reg_frmt in three_register_formats:  # ('uint48', 'sint48', 'um1k48', 'sm1k48', 'um10k48', 'sm10k48'):
+#             if reg_wo == 'msw':
+#                 registers[::3], registers[2::3] = registers[2:3], registers[::3]
+#
+#             reg_0 = registers[0]
+#             reg_1 = registers[1]
+#             reg_2 = registers[2]
+#             # for r0, r1, r2 in zip(regs[::3], regs[1::3], regs[2::3]):
+#             if reg_frmt == 'uint48':
+#                 pt_val = (reg_2 << 32) | (reg_1 << 16) | reg_0
+#             elif reg_frmt == 'sint48':
+#                 pt_val = 0.0
+#             elif reg_frmt == 'um1k48':
+#                 pt_val = (reg_2 * (10 ** 6)) + (reg_1 * 1000) + reg_0
+#             elif reg_frmt == 'sm1k48':
+#                 if (reg_2 >> 15) == 1:
+#                     reg_2 = (reg_2 & 0x7fff)
+#                     pt_val = (-1) * ((reg_2 * (10**6)) + (reg_1 * 1000) + reg_0)
+#                 else:
+#                     pt_val = (reg_2 * (10**6)) + (reg_1 * 1000) + reg_0
+#             elif reg_frmt == 'um10k48':
+#                 pt_val = (reg_2 * (10**8)) + (reg_1 * 10000) + reg_0
+#             elif reg_frmt == 'sm10k48':
+#                 if (reg_2 >> 15) == 1:
+#                     reg_2 = (reg_2 & 0x7fff)
+#                     pt_val = (-1) * ((reg_2 * (10**8)) + (reg_1 * 10000) + reg_0)
+#                 else:
+#                     pt_val = (reg_2 * (10**8)) + (reg_1 * 10000) + reg_0
+#         elif reg_frmt in four_register_formats:
+#             # ('uint64', 'sint64', 'um1k64', 'sm1k64', 'um10k64', 'sm10k64', 'engy', 'dbl')
+#             if reg_wo == 'msw':
+#                 registers[::4], registers[1::4], registers[2::4], registers[3::4] = registers[3::4], registers[2::4], \
+#                                                                                     registers[1::4], registers[::4]
+#
+#             reg_0 = registers[0]
+#             reg_1 = registers[1]
+#             reg_2 = registers[2]
+#             reg_3 = registers[3]
+#             # for r0, r1, r2, r3 in zip(regs[::4], regs[1::4], regs[2::4], regs[3::4]):
+#             if reg_frmt == 'uint64':
+#                 pt_val = (reg_3 << 48) | (reg_2 << 32) | (reg_1 << 16) | reg_0
+#             elif reg_frmt == 'sint64':
+#                 pt_val = unpack('q', pack('Q', (reg_3 << 48) | (reg_2 << 32) | (reg_1 << 16) | reg_0))[0]
+#             elif reg_frmt == 'um1k64':
+#                 pt_val = reg_3 * (10 ** 9) + reg_2 * (10 ** 6) + reg_1 * 1000 + reg_0
+#             elif reg_frmt == 'sm1k64':
+#                 if (reg_3 >> 15) == 1:
+#                     reg_3 = (reg_3 & 0x7fff)
+#                     pt_val = (-1) * (reg_3 * (10 ** 9) + reg_2 * (10 ** 6) + reg_1 * 1000 + reg_0)
+#                 else:
+#                     pt_val = reg_3 * (10 ** 9) + reg_2 * (10 ** 6) + reg_1 * 1000 + reg_0
+#             elif reg_frmt == 'um10k64':
+#                 pt_val = reg_3 * (10 ** 12) + reg_2 * (10 ** 8) + reg_1 * 10000 + reg_0
+#             elif reg_frmt == 'sm10k64':
+#                 if (reg_3 >> 15) == 1:
+#                     reg_3 = (reg_3 & 0x7fff)
+#                     pt_val = (-1) * (reg_3 * (10 ** 12) + reg_2 * (10 ** 8) + reg_1 * 10000 + reg_0)
+#                 else:
+#                     pt_val = reg_3 * (10 ** 12) + reg_2 * (10 ** 8) + reg_1 * 10000 + reg_0
+#             elif reg_frmt == 'engy':
+#                 # split r3 into engineering and mantissa bytes THIS WILL NOT HANDLE MANTISSA - DOCUMENTATION DOES
+#                 # NOT EXIST ON HOW TO HANDLE IT WITH THEIR UNITS
+#
+#                 engr = unpack('b', pack('B', (reg_3 >> 8)))[0]
+#                 pt_val = ((reg_2 << 32) | (reg_1 << 16) | reg_0) * (10 ** engr)
+#             elif reg_frmt == 'dbl':
+#                 pt_val = unpack('d', pack('Q', (reg_3 << 48) | (reg_2 << 32) | (reg_1 << 16) | reg_0))[0]
+#         else:
+#             pt_val = 0.0
+#         return pt_val
 
 
 class ModbusPollThread(threading.Thread):
@@ -822,8 +832,8 @@ class ModbusPollThread(threading.Thread):
             otpt = mb_poll(self.ip, self.mb_id, self.register, self.num_regs, func=self.mb_func, mb_to=self.timeout,
                            port=self.port, t='uint16')
             tx_resp = {'type': 'modbus', 'bcnt_inst': self.bcnt_instance, 'mb_func': self.mb_func,
-                           'mb_reg': self.register, 'mb_num_regs': self.num_regs, 'mb_otpt': otpt,
-                           'mb_resp_time': time.time(),'obj_list': self.object_list}
+                       'mb_reg': self.register, 'mb_num_regs': self.num_regs, 'mb_otpt': otpt,
+                       'mb_resp_time': time.time(), 'obj_list': self.object_list}
             self.tx_queue.put(tx_resp, 0.1)
             if otpt[0] == 'Err':
                 if _debug_modbus_registers: print('got modbus error', otpt)
