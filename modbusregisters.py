@@ -1,6 +1,6 @@
 from queue import Empty  # , Full
 import threading
-from mbpy.mbpy import mb_poll
+from mbpy.mb_poll import mb_poll
 import time
 from struct import pack, unpack
 # from pprint import pprint
@@ -344,8 +344,10 @@ class ModbusFormatAndStorage(threading.Thread):
                     inst_reg_bank[obj]['error'] = mb_resp[1]
                     inst_reg_bank[obj]['err_time'] = mb_resp_time
 
-                    bcnt_q_dict[(obj, inst_reg_bank[obj]['obj_type'])] = {'value': inst_reg_bank[obj]['value'],
-                                                                          'error': mb_resp[1]}
+                    bcnt_q_dict[dev_inst][(inst_reg_bank[obj]['obj_type'], obj)] = {'value':
+                                                                                    inst_reg_bank[obj]['value'],
+                                                                                    'error': mb_resp[1]}
+                    # if _debug_modbus_registers: print(obj, mb_resp)
         else:
             for obj in rx_resp['obj_list']:
                 if obj in inst_reg_bank:  # only add to reg bank where necessary
@@ -354,14 +356,16 @@ class ModbusFormatAndStorage(threading.Thread):
                                        inst_reg_bank[obj]['register'] - mb_start_reg + format_to_num_regs(obj_frmt)]
                     obj_val = format_registers_to_point(obj_regs, obj_frmt, inst_reg_bank[obj]['word_order'],
                                                         inst_reg_bank[obj]['scale_slope'],
-                                                        inst_reg_bank[obj['scale_int']])
+                                                        inst_reg_bank[obj]['scale_int'])
 
                     inst_reg_bank[obj]['value'] = obj_val
                     inst_reg_bank[obj]['val_time'] = mb_resp_time
                     inst_reg_bank[obj]['error'] = 0
                     inst_reg_bank[obj]['err_time'] = mb_resp_time
 
-                    bcnt_q_dict[(obj, inst_reg_bank[obj]['obj_type'])] = {'value': obj_val, 'error': 0}
+                    bcnt_q_dict[dev_inst][(inst_reg_bank[obj]['obj_type'], obj)] = {'value': obj_val, 'error': 0}
+
+                    # if _debug_modbus_registers: print(obj, obj_val)
 
         self.bank_to_bcnt_queue.put(bcnt_q_dict, timeout=0.1)
         return

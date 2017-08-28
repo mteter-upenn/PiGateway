@@ -67,18 +67,19 @@ def main():
     args = parser.parse_args()
 
     modbusregisters._debug_modbus_registers = args.debugprint
+    modbusbacnetclasses._mb_bcnt_cls_debug = args.debugprint
 
     max_apdu_len = 1024
     segmentation_support = 'segmentedBoth'
     vendor_id = 15
     ip_address = args.localip  # '130.91.139.93/22'
 
-    # bank_to_out_queue = queue.Queue()
-    out_to_bank_queue = queue.PriorityQueue()
+    mb_to_bank_queue = queue.Queue()
+    bank_to_bcnt_queue = queue.Queue()
 
-    reg_reader = modbusregisters.RegisterReader(out_to_bank_queue)  # , bank_to_out_queue)
-    reg_bank = modbusregisters.RegisterBankThread(out_to_bank_queue)
-
+    object_val_dict = {}
+    mb_req_dict = {}
+    unq_ip_last_resp_dict = {}
     dev_dict = {}
     app_dict = {}
 
@@ -88,7 +89,9 @@ def main():
     print(os.getcwd() + '/' + args.meterfile)
     json_raw_str = open(os.getcwd() + '/' + args.meterfile, 'r')
     map_dict = json.load(json_raw_str)
-    good_inst = reg_bank.add_instance(map_dict)
+    # good_inst = reg_bank.add_instance(map_dict)
+    good_inst = modbusregisters.add_meter_instance_to_dicts(map_dict, mb_to_bank_queue, object_val_dict, mb_req_dict,
+                                                            unq_ip_last_resp_dict)
     json_raw_str.close()
 
     # "deviceName": "DRL small steam",
@@ -177,9 +180,9 @@ def main():
                 # print('m', obj_eq_m, 'b', obj_eq_b)
 
                 maio = modbusbacnetclasses.ModbusAnalogInputObject(
-                    parent_device_inst=dev_inst,
-                    register_reader=reg_reader,
-                    rx_queue=queue.Queue(),
+                    # parent_device_inst=dev_inst,
+                    # register_reader=reg_reader,
+                    # rx_queue=queue.Queue(),
                     objectIdentifier=('analogInput', obj_inst),
                     objectName=obj_name,
                     description=obj_description,
@@ -191,6 +194,7 @@ def main():
                     modbusScaling=modbusbacnetclasses.ModbusScaling([obj_eq_m, obj_eq_b]),
                     units=obj_units_id,
                     statusFlags=StatusFlags([0, 1, 0, 0]),
+                    # statusFlags=[0, 1, 0, 0]
                 )
                 # _log.debug("    - ravo: %r", ravo)
                 app_dict[dev_inst].add_object(maio)
@@ -247,8 +251,18 @@ def main():
     # # make sure they are all there
     # _log.debug("    - object list: %r", this_device.objectList)
 
-    print('register bank start')
-    reg_bank.start()
+    print('init modbus bank')
+    obj_val_bank = modbusregisters.ModbusFormatAndStorage(mb_to_bank_queue, bank_to_bcnt_queue, object_val_dict)
+
+    print('init modbus req launcher')
+    mb_req_launcher = modbusregisters.ModbusRequestLauncher(mb_req_dict, unq_ip_last_resp_dict)
+
+    print('init update objects task')
+    update_objects = modbusbacnetclasses.UpdateObjectsFromModbus(bank_to_bcnt_queue, app_dict, 1000)
+
+    print('start bank and launcher')
+    obj_val_bank.start()
+    mb_req_launcher.start()
 
     _log.debug("running")
     print('bacnet start')

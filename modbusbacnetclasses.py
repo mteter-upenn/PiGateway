@@ -5,7 +5,7 @@ from bacpypes.debugging import bacpypes_debugging, ModuleLogger
 
 from bacpypes.service.device import LocalDeviceObject
 from bacpypes.constructeddata import ArrayOf
-from bacpypes.primitivedata import Real, Integer, CharacterString
+from bacpypes.primitivedata import Real, Integer, CharacterString, Enumerated
 from bacpypes.object import register_object_type, AnalogInputObject, ReadableProperty  # , AnalogValueObject, Property
 from bacpypes.task import RecurringTask
 
@@ -35,6 +35,24 @@ PropertyIdentifier.enumerations['modbusCommErr'] = 3000012
 
 
 ModbusScaling = ArrayOf(Real)
+
+
+class ModbusErrors(Enumerated):
+    enumerations = \
+        {'noFaultDetected': 0
+        , 'noSensor': 1
+        }
+
+    @classmethod
+    def is_valid(cls, arg):
+        """Return True if arg is valid value for the class.  If the string
+        value is wrong for the enumeration, the encoding will fail.
+        """
+        if isinstance(arg, int) and arg >= 0:
+            return arg in cls.enumerations.values()
+        elif isinstance(arg, str):
+            return arg in cls.enumerations.keys()
+        return False
 
 
 # @bacpypes_debugging
@@ -135,18 +153,20 @@ class ModbusAnalogInputObject(AnalogInputObject):
         ReadableProperty('modbusCommErr', Integer)
     ]
 
-    def __init__(self, parent_device_inst, register_reader, rx_queue, **kwargs):
+    # def __init__(self, parent_device_inst, register_reader, rx_queue, **kwargs):
+    def __init__(self, **kwargs):
         if _debug: ModbusAnalogInputObject._debug("__init__ %r", kwargs)
         AnalogInputObject.__init__(self, **kwargs)
-        self._register_reader = register_reader
-        self._parent_device_inst = parent_device_inst
-        self._rx_queue = rx_queue
-        self._values['reliability'] = 'communicationFailure'
-        self._values['statusFlags']['fault'] = 1
-        self._values['modbusCommErr'] = 19
-        self._values['outOfService'] = False
-        self._values['eventState'] = 'normal'
+        # self._register_reader = register_reader
+        # self._parent_device_inst = parent_device_inst
+        # self._rx_queue = rx_queue
+        self.reliability = 'communicationFailure'
+        # self.statusFlags['fault'] = 1
+        self.modbusCommErr = 19
+        self.outOfService = False
+        self.eventState = 'normal'
 
+        print('should be reliability property', self.reliability)
         # print(self._values['objectName'])
         # self._values['reliability'] = 'communicationFailure'
         # print(self._values['reliability'], self._values['statusFlags'], self._values['statusFlags']['fault'], '\n')
@@ -163,6 +183,10 @@ class ModbusAnalogInputObject(AnalogInputObject):
     #     else:
     #         return AnalogInputObject.ReadProperty(self, propid, arrayIndex=arrayIndex)
 
+    def ReadProperty(self, propid, arrayIndex=None):
+        if _mb_bcnt_cls_debug: print(propid, self.propid)  # might need self._values[propid]
+        return AnalogInputObject.ReadProperty(self, propid, arrayIndex=arrayIndex)
+
 register_object_type(ModbusAnalogInputObject)
 
 
@@ -178,16 +202,17 @@ class ModbusLocalDevice(LocalDeviceObject):
         # ReadableProperty('wordOrder', CharacterString)
     ]
 
+
 register_object_type(ModbusLocalDevice)
 
 
 @bacpypes_debugging
 class UpdateObjectsFromModbus(RecurringTask):
-    def __init__(self, bank_to_bcnt_queue, device_dict, interval, max_run_time=100):
+    def __init__(self, bank_to_bcnt_queue, app_dict, interval, max_run_time=10):
         RecurringTask.__init__(self, interval)
 
         self.bank_to_bcnt_queue = bank_to_bcnt_queue
-        self.dev_dict = device_dict
+        self.app_dict = app_dict
         self.max_run_time = max_run_time / 1000  # set in ms to coincide with interval
 
         # install it
@@ -195,16 +220,74 @@ class UpdateObjectsFromModbus(RecurringTask):
 
     def process_task(self):
         start_time = time.time()
+        if _mb_bcnt_cls_debug: print('start recurring task')
 
-        while (not self.bank_to_bcnt_queue.empty()) and (time.time() - start_time < self.max_run_time):
+        # while (not self.bank_to_bcnt_queue.empty()) and (time.time() - start_time < self.max_run_time):
+        if not self.bank_to_bcnt_queue.empty():
+            if _mb_bcnt_cls_debug: print('\tqueue not empty')
+
             try:
                 val_dict = self.bank_to_bcnt_queue.get_nowait()
+                if _mb_bcnt_cls_debug: print('\tgot bacnet update')
             except Empty:
-                continue
+                if _mb_bcnt_cls_debug: print('\tno bacnet update')
+                # continue
+                return
 
-            for dev_inst, values in val_dict.items():
-                if dev_inst not in self.dev_dict:
-                    break
+            if _mb_bcnt_cls_debug: print('\tpost try')
+
+            for dev_inst in val_dict.keys():
+                if dev_inst not in self.app_dict:
+                    continue
+
+                for obj_inst, obj_values in val_dict[dev_inst].items():
+                    if _mb_bcnt_cls_debug: print('\tobject instance', obj_inst)
+
+                    if obj_inst not in self.app_dict[dev_inst].objectIdentifier:
+                        # print('\t\tobject instance not in application dict')
+                        continue
+
+                    # print('\t\tobject instance in application dict')
+                    if _mb_bcnt_cls_debug: print('\t\tobject value', obj_values)
+
+                    bcnt_obj = self.app_dict[dev_inst].objectIdentifier[obj_inst]
+
+                    if obj_values['error'] != 0:
+                        change_object_prop_if_new(bcnt_obj, 'reliability', 'communicationFailure')
+                        change_object_prop_if_new(bcnt_obj, 'statusFlags', 1, arr_val='fault')
+                        change_object_prop_if_new(bcnt_obj, 'modbusCommErr', obj_values['error'])
+                        # bcnt_obj._values['presentValue'] = obj_values['value']
+                    else:
+                        # bcnt_obj._values['reliability'] = 'noFaultDetected'
+                        # bcnt_obj._values['statusFlags']['fault'] = 0
+                        # bcnt_obj._values['modbusCommErr'] = 0
+                        change_object_prop_if_new(bcnt_obj, 'reliability', 'noFaultDetected')
+                        change_object_prop_if_new(bcnt_obj, 'statusFlags', 0, arr_val='fault')
+                        change_object_prop_if_new(bcnt_obj, 'modbusCommErr', 0)
+                        bcnt_obj._values['presentValue'] = obj_values['value']
+            if _mb_bcnt_cls_debug: print('\tend of recurring')
+                # if reliability != 'noFaultDetected':
+                #             obj._values['reliability'] = reliability
+                #             obj._values['statusFlags']['fault'] = 1
+                #             if reliability == 'communicationFailure':
+                #                 obj._values['modbusCommErr'] = value
+                #             else:
+                #                 obj._values['modbusCommErr'] = 0
+                #             value = obj._values[self.identifier]  # set value to return to the current value stored
+                #         else:
+                #             obj._values['reliability'] = reliability
+                #             obj._values['statusFlags']['fault'] = 0
+                #             obj._values['modbusCommErr'] = 0
+                #             value = value * reg_scaling[1] + reg_scaling[2]  # scale modbus value to bacnet value
 
 
+def change_object_prop_if_new(bcnt_obj, property, obj_val, arr_val=None):
 
+    if arr_val is None:
+        if bcnt_obj._values[property] != obj_val:
+            bcnt_obj._values[property] = obj_val
+    else:
+        print('property', bcnt_obj._values[property])
+        print(bcnt_obj.statusFlags)
+        if bcnt_obj._values[property][arr_val] != obj_val:
+            bcnt_obj._values[property][arr_val] = obj_val
