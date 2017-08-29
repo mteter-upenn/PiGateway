@@ -160,11 +160,16 @@ class ModbusAnalogInputObject(AnalogInputObject):
         # self._register_reader = register_reader
         # self._parent_device_inst = parent_device_inst
         # self._rx_queue = rx_queue
-        self.reliability = 'communicationFailure'
-        # self.statusFlags['fault'] = 1
-        self.modbusCommErr = 19
-        self.outOfService = False
-        self.eventState = 'normal'
+        self._values['reliability'] = 'communicationFailure'
+        # self._values['statusFlags']['fault'] = 1
+        self._values['modbusCommErr'] = 19
+        self._values['outOfService'] = False
+        self._values['eventState'] = 'normal'
+        # self.reliability = 'communicationFailure'
+        # # self.statusFlags['fault'] = 1
+        # self.modbusCommErr = 19
+        # self.outOfService = False
+        # self.eventState = 'normal'
 
         # print(self._values['objectName'])
         # self._values['reliability'] = 'communicationFailure'

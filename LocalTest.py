@@ -14,7 +14,7 @@ import json
 import argparse
 
 from bacpypes.debugging import ModuleLogger, bacpypes_debugging
-# from bacpypes.consolelogging import ConfigArgumentParser
+from bacpypes.consolelogging import ConfigArgumentParser
 
 from bacpypes.core import run
 
@@ -58,21 +58,21 @@ def main():
 
     # object_name = 'LinuxLaptop'
     # object_id = 2459990
+    args = ConfigArgumentParser(description=__doc__).parse_args()
+    # parser = argparse.ArgumentParser(description='Sets up BACnet device gateway as local test')
 
-    parser = argparse.ArgumentParser(description='Sets up BACnet device gateway as local test')
+    # parser.add_argument('localip', type=str, help='Ip of the gateway and subnet mask X.X.X.X/Y')
+    # parser.add_argument('meterfile', type=str, help='Json file where meter meta data is stored')
+    # parser.add_argument('--debugprint', action='store_true', help='Print potentially helpful data to cmd line.')
+    # args = parser.parse_args()
 
-    parser.add_argument('localip', type=str, help='Ip of the gateway and subnet mask X.X.X.X/Y')
-    parser.add_argument('meterfile', type=str, help='Json file where meter meta data is stored')
-    parser.add_argument('--debugprint', action='store_true', help='Print potentially helpful data to cmd line.')
-    args = parser.parse_args()
-
-    modbusregisters._debug_modbus_registers = args.debugprint
-    modbusbacnetclasses._mb_bcnt_cls_debug = args.debugprint
+    modbusregisters._debug_modbus_registers = (args.ini.debugprint == 'True')
+    modbusbacnetclasses._mb_bcnt_cls_debug = (args.ini.debugprint == 'True')
 
     max_apdu_len = 1024
     segmentation_support = 'segmentedBoth'
     vendor_id = 15
-    ip_address = args.localip  # '130.91.139.93/22'
+    ip_address = args.ini.localip  # '130.91.139.93/22'
 
     mb_to_bank_queue = queue.Queue()
     bank_to_bcnt_queue = queue.Queue()
@@ -86,8 +86,8 @@ def main():
     # for fn in os.listdir(os.getcwd() + '/DeviceList'):
     #     if fn.endswith('.json') and fn.startswith('DGL'):
 
-    print(os.getcwd() + '/' + args.meterfile)
-    json_raw_str = open(os.getcwd() + '/' + args.meterfile, 'r')
+    print(os.getcwd() + '/' + args.ini.meterfile)
+    json_raw_str = open(os.getcwd() + '/' + args.ini.meterfile, 'r')
     map_dict = json.load(json_raw_str)
     # good_inst = reg_bank.add_instance(map_dict)
     good_inst = modbusregisters.add_meter_instance_to_dicts(map_dict, mb_to_bank_queue, object_val_dict, mb_req_dict,
@@ -193,8 +193,8 @@ def main():
                     wordOrder=mb_dev_wo,
                     modbusScaling=modbusbacnetclasses.ModbusScaling([obj_eq_m, obj_eq_b]),
                     units=obj_units_id,
-                    # statusFlags=StatusFlags([0, 1, 0, 0]),
-                    statusFlags=[0, 1, 0, 0]
+                    statusFlags=StatusFlags([0, 1, 0, 0]),
+                    # statusFlags=[0, 1, 0, 0]
                 )
                 # _log.debug("    - ravo: %r", ravo)
                 app_dict[dev_inst].add_object(maio)
