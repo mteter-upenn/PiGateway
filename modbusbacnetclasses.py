@@ -188,7 +188,7 @@ class ModbusAnalogInputObject(AnalogInputObject):
     #         return AnalogInputObject.ReadProperty(self, propid, arrayIndex=arrayIndex)
 
     def ReadProperty(self, propid, arrayIndex=None):
-        if _mb_bcnt_cls_debug: print(propid, self._values[propid], end=', ')  # might need self._values[propid]
+        if _mb_bcnt_cls_debug: print(propid, getattr(self, propid), end=', ')  # might need self._values[propid]
         value = AnalogInputObject.ReadProperty(self, propid, arrayIndex=arrayIndex)
         if _mb_bcnt_cls_debug: print('value:', value)
         return value
