@@ -166,7 +166,6 @@ class ModbusAnalogInputObject(AnalogInputObject):
         self.outOfService = False
         self.eventState = 'normal'
 
-        print('should be reliability property', self.reliability)
         # print(self._values['objectName'])
         # self._values['reliability'] = 'communicationFailure'
         # print(self._values['reliability'], self._values['statusFlags'], self._values['statusFlags']['fault'], '\n')
@@ -184,8 +183,11 @@ class ModbusAnalogInputObject(AnalogInputObject):
     #         return AnalogInputObject.ReadProperty(self, propid, arrayIndex=arrayIndex)
 
     def ReadProperty(self, propid, arrayIndex=None):
-        if _mb_bcnt_cls_debug: print(propid, self.propid)  # might need self._values[propid]
-        return AnalogInputObject.ReadProperty(self, propid, arrayIndex=arrayIndex)
+        if _mb_bcnt_cls_debug: print(propid, self.propid, end=', ')  # might need self._values[propid]
+        value = AnalogInputObject.ReadProperty(self, propid, arrayIndex=arrayIndex)
+        if _mb_bcnt_cls_debug: print('value:', value)
+        return value
+
 
 register_object_type(ModbusAnalogInputObject)
 
@@ -254,18 +256,15 @@ class UpdateObjectsFromModbus(RecurringTask):
 
                     if obj_values['error'] != 0:
                         change_object_prop_if_new(bcnt_obj, 'reliability', 'communicationFailure')
-                        change_object_prop_if_new(bcnt_obj, 'statusFlags', 1, arr_val='fault')
+                        # change_object_prop_if_new(bcnt_obj, 'statusFlags', 1, arr_val='fault')
                         change_object_prop_if_new(bcnt_obj, 'modbusCommErr', obj_values['error'])
                         # bcnt_obj._values['presentValue'] = obj_values['value']
                     else:
-                        # bcnt_obj._values['reliability'] = 'noFaultDetected'
-                        # bcnt_obj._values['statusFlags']['fault'] = 0
-                        # bcnt_obj._values['modbusCommErr'] = 0
                         change_object_prop_if_new(bcnt_obj, 'reliability', 'noFaultDetected')
-                        change_object_prop_if_new(bcnt_obj, 'statusFlags', 0, arr_val='fault')
+                        # change_object_prop_if_new(bcnt_obj, 'statusFlags', 0, arr_val='fault')
                         change_object_prop_if_new(bcnt_obj, 'modbusCommErr', 0)
                         bcnt_obj._values['presentValue'] = obj_values['value']
-            if _mb_bcnt_cls_debug: print('\tend of recurring')
+            if _mb_bcnt_cls_debug: print('end of recurring')
                 # if reliability != 'noFaultDetected':
                 #             obj._values['reliability'] = reliability
                 #             obj._values['statusFlags']['fault'] = 1
