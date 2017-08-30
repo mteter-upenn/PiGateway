@@ -34,13 +34,13 @@ PropertyIdentifier.enumerations['modbusPort'] = 3000011
 PropertyIdentifier.enumerations['modbusCommErr'] = 3000012
 
 
-ModbusScaling = ArrayOf(Real)
-
-
 class ModbusErrors(Enumerated):
     enumerations = \
         {'noFaultDetected': 0
-        , 'noSensor': 1
+         , 'illegalFunction': 1
+         , 'illegalDataAddress': 2
+         , 'noTcpConnection': 19
+         , 'generalError': 87
         }
 
     @classmethod
@@ -149,8 +149,9 @@ class ModbusAnalogInputObject(AnalogInputObject):
         ReadableProperty('numberOfRegisters', Integer),
         ReadableProperty('registerFormat', CharacterString),
         ReadableProperty('wordOrder', CharacterString),
-        ReadableProperty('modbusScaling', ModbusScaling),
-        ReadableProperty('modbusCommErr', Integer)
+        ReadableProperty('modbusScaling', ArrayOf(Real)),
+        # ReadableProperty('modbusCommErr', Integer)
+        ReadableProperty('modbusCommErr', ModbusErrors)
     ]
 
     # def __init__(self, parent_device_inst, register_reader, rx_queue, **kwargs):
@@ -160,16 +161,17 @@ class ModbusAnalogInputObject(AnalogInputObject):
         # self._register_reader = register_reader
         # self._parent_device_inst = parent_device_inst
         # self._rx_queue = rx_queue
-        self._values['reliability'] = 'communicationFailure'
+        # self._values['reliability'] = 'communicationFailure'
         # self._values['statusFlags']['fault'] = 1
-        self._values['modbusCommErr'] = 19
-        self._values['outOfService'] = False
-        self._values['eventState'] = 'normal'
-        # self.reliability = 'communicationFailure'
-        # # self.statusFlags['fault'] = 1
+        # self._values['modbusCommErr'] = 19
+        # self._values['outOfService'] = False
+        # self._values['eventState'] = 'normal'
+        self.reliability = 'communicationFailure'
+        # self.statusFlags['fault'] = 1
         # self.modbusCommErr = 19
-        # self.outOfService = False
-        # self.eventState = 'normal'
+        self.modbusCommErr = 'noTcpConnection'
+        self.outOfService = False
+        self.eventState = 'normal'
 
         # print(self._values['objectName'])
         # self._values['reliability'] = 'communicationFailure'
@@ -267,7 +269,7 @@ class UpdateObjectsFromModbus(RecurringTask):
                     else:
                         change_object_prop_if_new(bcnt_obj, 'reliability', 'noFaultDetected')
                         # change_object_prop_if_new(bcnt_obj, 'statusFlags', 0, arr_val='fault')
-                        change_object_prop_if_new(bcnt_obj, 'modbusCommErr', 0)
+                        change_object_prop_if_new(bcnt_obj, 'modbusCommErr', 'noFaultDetected')
                         bcnt_obj._values['presentValue'] = obj_values['value']
             if _mb_bcnt_cls_debug: print('end of recurring')
                 # if reliability != 'noFaultDetected':

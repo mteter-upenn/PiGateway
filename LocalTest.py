@@ -191,10 +191,10 @@ def main():
                     numberOfRegisters=obj_num_regs,
                     registerFormat=obj_reg_format,
                     wordOrder=mb_dev_wo,
-                    modbusScaling=modbusbacnetclasses.ModbusScaling([obj_eq_m, obj_eq_b]),
+                    modbusScaling=[obj_eq_m, obj_eq_b],
                     units=obj_units_id,
-                    statusFlags=StatusFlags([0, 1, 0, 0]),
-                    # statusFlags=[0, 1, 0, 0]
+                    # statusFlags=StatusFlags([0, 1, 0, 0]),
+                    statusFlags=[0, 1, 0, 0]
                 )
                 # _log.debug("    - ravo: %r", ravo)
                 app_dict[dev_inst].add_object(maio)
