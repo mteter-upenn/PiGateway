@@ -1,17 +1,18 @@
-import time
+# import time
 from queue import Empty
 
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
 
 from bacpypes.service.device import LocalDeviceObject
 from bacpypes.constructeddata import ArrayOf
-from bacpypes.primitivedata import Real, Integer, CharacterString, Enumerated
-from bacpypes.object import register_object_type, AnalogInputObject, ReadableProperty  # , AnalogValueObject, Property
+from bacpypes.primitivedata import Real, Integer, CharacterString, Enumerated, Unsigned, Boolean
+from bacpypes.object import register_object_type, Object, ReadableProperty, OptionalProperty
 from bacpypes.task import RecurringTask
 
 # from bacpypes.errors import ExecutionError
 
-from bacpypes.basetypes import PropertyIdentifier
+from bacpypes.basetypes import PropertyIdentifier, Reliability, EngineeringUnits, StatusFlags, EventState
+# LimitEnable, EventTransitionBits, NotifyType, TimeStamp, ObjectPropertyReference
 
 _debug = 0
 _log = ModuleLogger(globals())
@@ -32,166 +33,212 @@ PropertyIdentifier.enumerations['modbusMapRev'] = 3000009
 PropertyIdentifier.enumerations['deviceModelName'] = 3000010
 PropertyIdentifier.enumerations['modbusPort'] = 3000011
 PropertyIdentifier.enumerations['modbusCommErr'] = 3000012
+PropertyIdentifier.enumerations['profileLocation'] = 485
+
+# this will be used to ensure all properties have been given values- THIS IS NOT AN EXCUSE TO NOT GIVE VALUES!
+modbus_ai_obj_def_vals = \
+    {'description': 'modbus register as bacnet point',
+     'profileName': '',
+     'profileLocation': '',
+     'deviceType': 'not listed',
+     'statusFlags': [0, 1, 0, 0],
+     'eventState': 'normal',
+     'reliability': 'communicationFailure',
+     'outOfService': False,
+     'updateInterval': 3000,
+     'units': 'noUnits',
+     'minPresValue': 0,  # not sure if this does anything internally
+     'maxPresValue': 1,  # not sure if this has an effect
+     'resolution': 0,
+     'covIncrement': 0,
+     'modbusFunction': 'readHoldingRegisters',
+     'registerStart': 1,
+     'numberOfRegisters': 1,
+     'registerFormat': 'uint16',
+     'wordOrder': 'lsw',
+     'modbusScaling': [1, 0],
+     'modbusCommErr': 'noTcpConnection'
+     }
 
 
 class ModbusErrors(Enumerated):
     enumerations = \
-        {'noFaultDetected': 0
-         , 'illegalFunction': 1
-         , 'illegalDataAddress': 2
-         , 'noTcpConnection': 19
-         , 'generalError': 87
-        }
+        {'noFaultDetected': 0,
+         'illegalFunction': 1,
+         'illegalDataAddress': 2,
+         'illegalDataValue': 3,
+         'slaveDeviceFailure': 4,
+         'acknowledge': 5,
+         'slaveDeviceBusy': 6,
+         'negAcknowledge': 7,
+         'memoryParityError': 8,
+         'gatewayPathUnavailable': 10,
+         'gatewayTargetFailedToRespond': 11,
+         'noTcpConnection': 19,
+         'generalError': 87,
+         'invalidIpAddr': 101,
+         'invalidDataType': 102,
+         'invalidRegisterLookup': 103,
+         'invalidFileName': 104,
+         'unableToAccessFile': 105,
+         'slaveClosedSocket': 106,
+         'keyboardInterrupt': 107,
+         'unexpectedTcpLength': 108,
+         'unexpectedMbLength': 109,
+         'unexpectedMbFuncRet': 110,
+         'unexpectedMbSlvRet': 111
+         }
+    # should be a part of the Enumerated parent class
+    # @classmethod
+    # def is_valid(cls, arg):
+    #     """Return True if arg is valid value for the class.  If the string
+    #     value is wrong for the enumeration, the encoding will fail.
+    #     """
+    #     if isinstance(arg, int) and arg >= 0:
+    #         return arg in cls.enumerations.values()
+    #     elif isinstance(arg, str):
+    #         return arg in cls.enumerations.keys()
+    #     return False
 
-    @classmethod
-    def is_valid(cls, arg):
-        """Return True if arg is valid value for the class.  If the string
-        value is wrong for the enumeration, the encoding will fail.
-        """
-        if isinstance(arg, int) and arg >= 0:
-            return arg in cls.enumerations.values()
-        elif isinstance(arg, str):
-            return arg in cls.enumerations.keys()
-        return False
+
+class ModbusFunctions(Enumerated):
+    enumerations = \
+        {'readCoilBits': 1,
+         'readInputBits': 2,
+         'readHoldingRegisters': 3,
+         'readInputRegisters': 4,
+         'forceSingleBit': 5,
+         'presetSingleRegister': 6,
+         'readExceptionStatus': 7,
+         'fetchCommEventCounter': 11,
+         'fetchCommEventLog': 12,
+         'forceMultipleCoils': 15,
+         'presetMultipleRegisters': 16,
+         'reportSlaveId': 17,
+         'readGeneralReference': 20,
+         'writeGenerealReference': 21,
+         'maskWriteRegister': 22,
+         'readWriteRegister': 23,
+         'readFifoQueue': 24
+         }
 
 
-# @bacpypes_debugging
-# class RegisterScalingProperty(Property):
-#     def __init__(self, identifier):
-#         if _debug: RegisterScalingProperty._debug("__init__ %r", identifier)
-#         Property.__init__(self, identifier, Real, default=None, optional=False, mutable=False)
-#         self._is_scaled()
+class ModbusRegisterFormat(Enumerated):
+    enumerations = \
+        {'uint16': 0,
+         'sint16': 1,
+         'sm1k16': 2,
+         'sm10k16': 3,
+         'bin': 4,
+         'hex': 5,
+         'ascii': 6,
+         'uint32': 7,
+         'sint32': 8,
+         'um1k32': 9,
+         'sm1k32': 10,
+         'um10k32': 11,
+         'sm10k32': 12,
+         'float': 13,
+         'uint48': 14,
+         'um1k48': 15,
+         'sm1k48': 16,
+         'um10k48': 17,
+         'sm10k48': 18,
+         'uint64': 19,
+         'sint64': 20,
+         'um1k64': 21,
+         'sm1k64': 22,
+         'um10k64': 23,
+         'sm10k64': 24,
+         'double': 25,
+         'energy': 26
+         }
 
-# @bacpypes_debugging
-# class ModbusValueProperty(Property):
-#
-#     def __init__(self, identifier):
-#         if _debug: ModbusValueProperty._debug("__init__ %r", identifier)
-#         Property.__init__(self, identifier, Real, default=None, optional=True, mutable=False)
-#
-#     def ReadProperty(self, obj, array_index=None):
-#         if _debug: ModbusValueProperty._debug("ReadProperty %r arrayIndex=%r", obj, array_index)
-#
-#         # access an array
-#         if array_index is not None:
-#             raise ExecutionError(errorClass='property', errorCode='propertyIsNotAnArray')
-#
-#         dev_inst = obj._parent_device_inst
-#         # mb_func = obj.ReadProperty('modbusFunction')
-#         # register_start = obj.ReadProperty('registerStart')
-#         # num_regs = obj.ReadProperty('numberOfRegisters')
-#         # reg_frmt = obj.ReadProperty('registerFormat')
-#         # word_order = obj.ReadProperty('wordOrder')
-#         # register_reader = obj._register_reader
-#         try:
-#             mb_func = obj._values['modbusFunction']
-#             register_start = obj._values['registerStart']
-#             num_regs = obj._values['numberOfRegisters']
-#             reg_frmt = obj._values['registerFormat']
-#             word_order = obj._values['wordOrder']
-#             register_reader = obj._register_reader
-#             rx_queue = obj._rx_queue
-#             # is_scaled = obj._is_scaled
-#             reg_scaling = obj._values['modbusScaling']  # ArrayOf[lenArr, m, b]
-#             # status_flags = obj._values['statusFlags']
-#             # print(status_flags)
-#         except KeyError:
-#             return 0.0
-#
-#         if _mb_bcnt_cls_debug:
-#             # return test value
-#             value = register_start
-#             reliability = True
-#         else:
-#             # clear queue of any old data or this will be read
-#             while not rx_queue.empty():
-#                 rx_queue.get(block=False)
-#             # return value from modbus register bank
-#             value, reliability = register_reader.get_register_format(dev_inst, mb_func, register_start, num_regs,
-#                                                                      reg_frmt, word_order, rx_queue)
-#
-#         if _debug: ModbusValueProperty._debug("    - value: %r", value)
-#
-#         # print('ReadProperty from property', obj.ReadProperty('objectIdentifier'), dev_inst)
-#         # print('obj parent is', self.object_parent)
-#         if reliability != 'noFaultDetected':
-#             obj._values['reliability'] = reliability
-#             obj._values['statusFlags']['fault'] = 1
-#             if reliability == 'communicationFailure':
-#                 obj._values['modbusCommErr'] = value
-#             else:
-#                 obj._values['modbusCommErr'] = 0
-#             value = obj._values[self.identifier]  # set value to return to the current value stored
-#         else:
-#             obj._values['reliability'] = reliability
-#             obj._values['statusFlags']['fault'] = 0
-#             obj._values['modbusCommErr'] = 0
-#             value = value * reg_scaling[1] + reg_scaling[2]  # scale modbus value to bacnet value
-#
-#         return value
-#
-#     def WriteProperty(self, obj, value, array_index=None, priority=None, direct=False):
-#         if _debug: ModbusValueProperty._debug("WriteProperty %r %r arrayIndex=%r priority=%r direct=%r", obj, value,
-#                                               array_index, priority, direct)
-#         raise ExecutionError(errorClass='property', errorCode='writeAccessDenied')
-#
-#     # def set_obj_parent(self, obj_id):
-#     #     self.object_parent = obj_id
-#     #     print('parent set:', obj_id)
+
+class ModbusRegisterWordOrder(Enumerated):
+    enumerations = \
+        {'lsw': 0,
+         'msw': 1
+         }
 
 
 @bacpypes_debugging
-class ModbusAnalogInputObject(AnalogInputObject):
-    properties = [
-        # ModbusValueProperty('presentValue'),
-        ReadableProperty('modbusFunction', Integer),
-        ReadableProperty('registerStart', Integer),
-        ReadableProperty('numberOfRegisters', Integer),
-        ReadableProperty('registerFormat', CharacterString),
-        ReadableProperty('wordOrder', CharacterString),
-        ReadableProperty('modbusScaling', ArrayOf(Real)),
-        # ReadableProperty('modbusCommErr', Integer)
-        ReadableProperty('modbusCommErr', ModbusErrors)
-    ]
+class ModbusAnalogInputObject(Object):
+    objectType = 'analogInput'
+    properties = \
+        [ReadableProperty('presentValue', Real),
+         OptionalProperty('deviceType', CharacterString),
+         ReadableProperty('statusFlags', StatusFlags),
+         ReadableProperty('eventState', EventState),
+         OptionalProperty('reliability', Reliability),
+         ReadableProperty('outOfService', Boolean),
+         OptionalProperty('updateInterval', Unsigned),
+         ReadableProperty('units', EngineeringUnits),
+         OptionalProperty('minPresValue', Real),
+         OptionalProperty('maxPresValue', Real),
+         OptionalProperty('resolution', Real),
+         OptionalProperty('covIncrement', Real),
+         # OptionalProperty('timeDelay', Unsigned),
+         # OptionalProperty('notificationClass', Unsigned),
+         # OptionalProperty('highLimit', Real),
+         # OptionalProperty('lowLimit', Real),
+         # OptionalProperty('deadband', Real),
+         # OptionalProperty('limitEnable', LimitEnable),
+         # OptionalProperty('eventEnable', EventTransitionBits),
+         # OptionalProperty('ackedTransitions', EventTransitionBits),
+         # OptionalProperty('notifyType', NotifyType),
+         # OptionalProperty('eventTimeStamps', ArrayOf(TimeStamp)),
+         # OptionalProperty('eventMessageTexts', ArrayOf(CharacterString)),
+         # OptionalProperty('eventMessageTextsConfig', ArrayOf(CharacterString)),
+         # OptionalProperty('eventDetectionEnable', Boolean),
+         # OptionalProperty('eventAlgorithmInhibitRef', ObjectPropertyReference),
+         # OptionalProperty('eventAlgorithmInhibit', Boolean),
+         # OptionalProperty('timeDelayNormal', Unsigned),
+         # OptionalProperty('reliabilityEvaluationInhibit', Boolean)
+         ReadableProperty('modbusFunction', ModbusFunctions),
+         ReadableProperty('registerStart', Unsigned),
+         ReadableProperty('numberOfRegisters', Unsigned),
+         ReadableProperty('registerFormat', CharacterString),
+         ReadableProperty('wordOrder', CharacterString),
+         ReadableProperty('modbusScaling', ArrayOf(Real)),
+         ReadableProperty('modbusCommErr', ModbusErrors)
+         ]
+# class ModbusAnalogInputObject(AnalogInputObject):
+    # properties = [
+    #     # ModbusValueProperty('presentValue'),
+    #     ReadableProperty('modbusFunction', Integer),
+    #     ReadableProperty('registerStart', Integer),
+    #     ReadableProperty('numberOfRegisters', Integer),
+    #     ReadableProperty('registerFormat', CharacterString),
+    #     ReadableProperty('wordOrder', CharacterString),
+    #     ReadableProperty('modbusScaling', ArrayOf(Real)),
+    #     # ReadableProperty('modbusCommErr', Integer)
+    #     ReadableProperty('modbusCommErr', ModbusErrors)
+    # ]
 
     # def __init__(self, parent_device_inst, register_reader, rx_queue, **kwargs):
     def __init__(self, **kwargs):
         if _debug: ModbusAnalogInputObject._debug("__init__ %r", kwargs)
-        AnalogInputObject.__init__(self, **kwargs)
-        # self._register_reader = register_reader
-        # self._parent_device_inst = parent_device_inst
-        # self._rx_queue = rx_queue
-        # self._values['reliability'] = 'communicationFailure'
-        # self._values['statusFlags']['fault'] = 1
-        # self._values['modbusCommErr'] = 19
-        # self._values['outOfService'] = False
-        # self._values['eventState'] = 'normal'
-        self.reliability = 'communicationFailure'
-        # self.statusFlags['fault'] = 1
-        # self.modbusCommErr = 19
-        self.modbusCommErr = 'noTcpConnection'
-        self.outOfService = False
-        self.eventState = 'normal'
+        Object.__init__(self, **kwargs)
 
-        # print(self._values['objectName'])
-        # self._values['reliability'] = 'communicationFailure'
-        # print(self._values['reliability'], self._values['statusFlags'], self._values['statusFlags']['fault'], '\n')
+        # self.reliability = 'communicationFailure'
+        # # self.statusFlags['fault'] = 1
+        # # self.modbusCommErr = 19
+        # self.modbusCommErr = 'noTcpConnection'
+        # self.outOfService = False
+        # self.eventState = 'normal'
 
-    # def ReadProperty(self, propid, arrayIndex=None):
-    #     print('object overwrite ReadProperty')
-    #     if propid=='presentValue':
-    #         prop = self._properties.get(propid)
-    #         if not prop:
-    #             raise PropertyError(propid)
-    #
-    #         # defer to the property to get the value
-    #         return prop.ReadProperty(self, arrayIndex)
-    #     else:
-    #         return AnalogInputObject.ReadProperty(self, propid, arrayIndex=arrayIndex)
+        # set unassigned properties to default values
+        for propid, prop in self._properties.items():
+            if prop.ReadProperty(self) is None and propid in modbus_ai_obj_def_vals:
+                if _mb_bcnt_cls_debug: print(self.objectName, propid, 'was not set, default is',
+                                             modbus_ai_obj_def_vals[propid])
+
+                prop.WriteProperty(self, modbus_ai_obj_def_vals[propid], direct=True)
 
     def ReadProperty(self, propid, arrayIndex=None):
         if _mb_bcnt_cls_debug: print(propid, getattr(self, propid), end=', ')  # might need self._values[propid]
-        value = AnalogInputObject.ReadProperty(self, propid, arrayIndex=arrayIndex)
+        value = Object.ReadProperty(self, propid, arrayIndex=arrayIndex)
         if _mb_bcnt_cls_debug: print('value:', value)
         return value
 
@@ -217,18 +264,18 @@ register_object_type(ModbusLocalDevice)
 
 @bacpypes_debugging
 class UpdateObjectsFromModbus(RecurringTask):
-    def __init__(self, bank_to_bcnt_queue, app_dict, interval, max_run_time=10):
+    def __init__(self, bank_to_bcnt_queue, app_dict, interval):  # , max_run_time=10):
         RecurringTask.__init__(self, interval)
 
         self.bank_to_bcnt_queue = bank_to_bcnt_queue
         self.app_dict = app_dict
-        self.max_run_time = max_run_time / 1000  # set in ms to coincide with interval
+        # self.max_run_time = max_run_time / 1000  # set in ms to coincide with interval
 
         # install it
         self.install_task()
 
     def process_task(self):
-        start_time = time.time()
+        # start_time = time.time()
         if _mb_bcnt_cls_debug: print('start recurring task')
 
         # while (not self.bank_to_bcnt_queue.empty()) and (time.time() - start_time < self.max_run_time):
@@ -263,37 +310,28 @@ class UpdateObjectsFromModbus(RecurringTask):
 
                     if obj_values['error'] != 0:
                         change_object_prop_if_new(bcnt_obj, 'reliability', 'communicationFailure')
-                        # change_object_prop_if_new(bcnt_obj, 'statusFlags', 1, arr_val='fault')
+                        change_object_prop_if_new(bcnt_obj, 'statusFlags', 1, arr_idx='fault')
                         change_object_prop_if_new(bcnt_obj, 'modbusCommErr', obj_values['error'])
                         # bcnt_obj._values['presentValue'] = obj_values['value']
                     else:
                         change_object_prop_if_new(bcnt_obj, 'reliability', 'noFaultDetected')
-                        # change_object_prop_if_new(bcnt_obj, 'statusFlags', 0, arr_val='fault')
+                        change_object_prop_if_new(bcnt_obj, 'statusFlags', 0, arr_idx='fault')
                         change_object_prop_if_new(bcnt_obj, 'modbusCommErr', 'noFaultDetected')
-                        bcnt_obj._values['presentValue'] = obj_values['value']
+                        # bcnt_obj._values['presentValue'] = obj_values['value']
+                        setattr(bcnt_obj, 'presentValue', obj_values['value'])
             if _mb_bcnt_cls_debug: print('end of recurring')
-                # if reliability != 'noFaultDetected':
-                #             obj._values['reliability'] = reliability
-                #             obj._values['statusFlags']['fault'] = 1
-                #             if reliability == 'communicationFailure':
-                #                 obj._values['modbusCommErr'] = value
-                #             else:
-                #                 obj._values['modbusCommErr'] = 0
-                #             value = obj._values[self.identifier]  # set value to return to the current value stored
-                #         else:
-                #             obj._values['reliability'] = reliability
-                #             obj._values['statusFlags']['fault'] = 0
-                #             obj._values['modbusCommErr'] = 0
-                #             value = value * reg_scaling[1] + reg_scaling[2]  # scale modbus value to bacnet value
 
 
-def change_object_prop_if_new(bcnt_obj, property, obj_val, arr_val=None):
-
-    if arr_val is None:
-        if bcnt_obj._values[property] != obj_val:
-            bcnt_obj._values[property] = obj_val
+def change_object_prop_if_new(bcnt_obj, prop, obj_val, arr_idx=None):
+    if arr_idx is None:
+        # if bcnt_obj._values[property] != obj_val:
+        #     bcnt_obj._values[property] = obj_val
+        if getattr(bcnt_obj, prop) != obj_val:
+            setattr(bcnt_obj, prop, obj_val)
     else:
-        print('property', bcnt_obj._values[property])
-        print(bcnt_obj.statusFlags)
-        if bcnt_obj._values[property][arr_val] != obj_val:
-            bcnt_obj._values[property][arr_val] = obj_val
+        # print('property', bcnt_obj._values[property])
+        # print(bcnt_obj.statusFlags)
+        # if bcnt_obj._values[prop][arr_idx] != obj_val:
+        #     bcnt_obj._values[prop][arr_idx] = obj_val
+        if bcnt_obj.ReadProperty(prop, arrayIndex=arr_idx) != obj_val:
+            bcnt_obj.WriteProperty(prop, obj_val, arrayIndex=arr_idx, direct=True)
