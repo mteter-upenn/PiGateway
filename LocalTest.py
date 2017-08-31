@@ -25,6 +25,7 @@ from bacpypes.basetypes import StatusFlags
 
 from bacpypes.app import BIPSimpleApplication
 from bacpypes.service.object import ReadWritePropertyMultipleServices
+from bacpypes.service.cov import ChangeOfValueServices
 # from bacpypes.service.device import LocalDeviceObject
 
 import modbusregisters
@@ -41,7 +42,7 @@ _log = ModuleLogger(globals())
 
 @bacpypes_debugging
 # ADDED ReadWritePropertyMultipleServices
-class ModbusSimpleApplication(BIPSimpleApplication, ReadWritePropertyMultipleServices):
+class ModbusSimpleApplication(BIPSimpleApplication, ReadWritePropertyMultipleServices, ChangeOfValueServices):
     pass
 
 
@@ -144,6 +145,7 @@ def main():
                 continue
 
             mb_dev_wo = map_dict[val_type]['wordOrder']
+            mb_dev_poll_time = map_dict[val_type]['pollingTime']
 
             for register in map_dict[val_type]['registers']:
                 # "objectName": "heat_flow_steam",
@@ -194,7 +196,10 @@ def main():
                     modbusScaling=[obj_eq_m, obj_eq_b],
                     units=obj_units_id,
                     # statusFlags=StatusFlags([0, 1, 0, 0]),
-                    statusFlags=[0, 1, 0, 0]
+                    statusFlags=[0, 1, 0, 0],
+                    covIncrement=0.0,
+                    updateInterval=(mb_dev_poll_time / 10.0),
+                    resolution=0.0,
                 )
                 # _log.debug("    - ravo: %r", ravo)
                 app_dict[dev_inst].add_object(maio)

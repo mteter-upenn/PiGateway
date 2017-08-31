@@ -168,6 +168,7 @@ class ModbusAnalogInputObject(Object):
     properties = \
         [ReadableProperty('presentValue', Real),
          OptionalProperty('deviceType', CharacterString),
+         OptionalProperty('profileLocation', CharacterString),
          ReadableProperty('statusFlags', StatusFlags),
          ReadableProperty('eventState', EventState),
          OptionalProperty('reliability', Reliability),
@@ -310,15 +311,16 @@ class UpdateObjectsFromModbus(RecurringTask):
 
                     if obj_values['error'] != 0:
                         change_object_prop_if_new(bcnt_obj, 'reliability', 'communicationFailure')
-                        change_object_prop_if_new(bcnt_obj, 'statusFlags', 1, arr_idx='fault')
+                        # change_object_prop_if_new(bcnt_obj, 'statusFlags', 1, arr_idx='fault')
                         change_object_prop_if_new(bcnt_obj, 'modbusCommErr', obj_values['error'])
                         # bcnt_obj._values['presentValue'] = obj_values['value']
                     else:
                         change_object_prop_if_new(bcnt_obj, 'reliability', 'noFaultDetected')
-                        change_object_prop_if_new(bcnt_obj, 'statusFlags', 0, arr_idx='fault')
+                        # change_object_prop_if_new(bcnt_obj, 'statusFlags', 0, arr_idx='fault')
                         change_object_prop_if_new(bcnt_obj, 'modbusCommErr', 'noFaultDetected')
                         # bcnt_obj._values['presentValue'] = obj_values['value']
-                        setattr(bcnt_obj, 'presentValue', obj_values['value'])
+                        # setattr(bcnt_obj, 'presentValue', obj_values['value'])
+                        bcnt_obj.WriteProperty('presentValue', obj_values['value'], direct=True)
             if _mb_bcnt_cls_debug: print('end of recurring')
 
 
