@@ -5,7 +5,7 @@ from bacpypes.debugging import bacpypes_debugging, ModuleLogger
 
 from bacpypes.service.device import LocalDeviceObject
 from bacpypes.constructeddata import ArrayOf
-from bacpypes.primitivedata import Real, Integer, CharacterString, Enumerated, Unsigned, Boolean
+from bacpypes.primitivedata import Real, Integer, CharacterString, Enumerated, Unsigned, Boolean, BitString
 from bacpypes.object import register_object_type, Object, ReadableProperty, OptionalProperty
 from bacpypes.task import RecurringTask
 
@@ -310,30 +310,35 @@ class UpdateObjectsFromModbus(RecurringTask):
                     bcnt_obj = self.app_dict[dev_inst].objectIdentifier[obj_inst]
 
                     if obj_values['error'] != 0:
-                        change_object_prop_if_new(bcnt_obj, 'reliability', 'communicationFailure')
+                        # change_object_prop_if_new(bcnt_obj, 'reliability', 'communicationFailure')
                         # change_object_prop_if_new(bcnt_obj, 'statusFlags', 1, arr_idx='fault')
-                        change_object_prop_if_new(bcnt_obj, 'modbusCommErr', obj_values['error'])
-                        # bcnt_obj._values['presentValue'] = obj_values['value']
+                        # change_object_prop_if_new(bcnt_obj, 'modbusCommErr', obj_values['error'])
+                        bcnt_obj.WriteProperty('reliability', 'communicationFailure')
+                        change_object_prop_if_new(bcnt_obj, 'statusFlags', 0, arr_idx='fault')
+                        bcnt_obj.WriteProperty('modbusCommErr', obj_values['error'])
                     else:
-                        change_object_prop_if_new(bcnt_obj, 'reliability', 'noFaultDetected')
+                        # change_object_prop_if_new(bcnt_obj, 'reliability', 'noFaultDetected')
                         # change_object_prop_if_new(bcnt_obj, 'statusFlags', 0, arr_idx='fault')
-                        change_object_prop_if_new(bcnt_obj, 'modbusCommErr', 'noFaultDetected')
+                        # change_object_prop_if_new(bcnt_obj, 'modbusCommErr', 'noFaultDetected')
                         # bcnt_obj._values['presentValue'] = obj_values['value']
-                        # setattr(bcnt_obj, 'presentValue', obj_values['value'])
+                        bcnt_obj.WriteProperty('reliability', 'noFaultDetected')
+                        change_object_prop_if_new(bcnt_obj, 'statusFlags', 0, arr_idx='fault')
+                        bcnt_obj.WriteProperty('modbusCommErr', 'noFaultDetected')
                         bcnt_obj.WriteProperty('presentValue', obj_values['value'], direct=True)
             if _mb_bcnt_cls_debug: print('end of recurring')
 
 
 def change_object_prop_if_new(bcnt_obj, prop, obj_val, arr_idx=None):
     if arr_idx is None:
-        # if bcnt_obj._values[property] != obj_val:
-        #     bcnt_obj._values[property] = obj_val
-        if getattr(bcnt_obj, prop) != obj_val:
-            setattr(bcnt_obj, prop, obj_val)
+        if bcnt_obj.ReadProperty(prop) != obj_val:
+            bcnt_obj.WriteProperty(prop, obj_val, direct=True)
     else:
-        # print('property', bcnt_obj._values[property])
-        # print(bcnt_obj.statusFlags)
-        # if bcnt_obj._values[prop][arr_idx] != obj_val:
-        #     bcnt_obj._values[prop][arr_idx] = obj_val
-        if bcnt_obj.ReadProperty(prop, arrayIndex=arr_idx) != obj_val:
+        if isinstance(getattr(bcnt_obj, prop), BitString):  # need to split bitstring in if because library will only
+            # use arrayIndex for objects with the Array() class as a parent
+            if isinstance(arr_idx, str):
+                pass
+            else:
+                bs_idx = arr_idx
+            pass
+        elif bcnt_obj.ReadProperty(prop, arrayIndex=arr_idx) != obj_val:
             bcnt_obj.WriteProperty(prop, obj_val, arrayIndex=arr_idx, direct=True)
