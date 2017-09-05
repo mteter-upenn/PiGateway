@@ -1,5 +1,6 @@
 # import time
 from queue import Empty
+from copy import copy as scopy
 
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
 
@@ -313,32 +314,47 @@ class UpdateObjectsFromModbus(RecurringTask):
                         # change_object_prop_if_new(bcnt_obj, 'reliability', 'communicationFailure')
                         # change_object_prop_if_new(bcnt_obj, 'statusFlags', 1, arr_idx='fault')
                         # change_object_prop_if_new(bcnt_obj, 'modbusCommErr', obj_values['error'])
-                        bcnt_obj.WriteProperty('reliability', 'communicationFailure')
+                        bcnt_obj.WriteProperty('reliability', 'communicationFailure', direct=True)
                         change_object_prop_if_new(bcnt_obj, 'statusFlags', 0, arr_idx='fault')
-                        bcnt_obj.WriteProperty('modbusCommErr', obj_values['error'])
+                        bcnt_obj.WriteProperty('modbusCommErr', obj_values['error'], direct=True)
                     else:
                         # change_object_prop_if_new(bcnt_obj, 'reliability', 'noFaultDetected')
                         # change_object_prop_if_new(bcnt_obj, 'statusFlags', 0, arr_idx='fault')
                         # change_object_prop_if_new(bcnt_obj, 'modbusCommErr', 'noFaultDetected')
                         # bcnt_obj._values['presentValue'] = obj_values['value']
-                        bcnt_obj.WriteProperty('reliability', 'noFaultDetected')
+                        bcnt_obj.WriteProperty('reliability', 'noFaultDetected', direct=True)
+                        print('reliability done')
                         change_object_prop_if_new(bcnt_obj, 'statusFlags', 0, arr_idx='fault')
-                        bcnt_obj.WriteProperty('modbusCommErr', 'noFaultDetected')
+                        print('status flags done')
+                        bcnt_obj.WriteProperty('modbusCommErr', 'noFaultDetected', direct=True)
+                        print('modbus comm err done')
                         bcnt_obj.WriteProperty('presentValue', obj_values['value'], direct=True)
+                        print('pv done')
             if _mb_bcnt_cls_debug: print('end of recurring')
 
 
-def change_object_prop_if_new(bcnt_obj, prop, obj_val, arr_idx=None):
+def change_object_prop_if_new(bcnt_obj, propid, obj_val, arr_idx=None):
     if arr_idx is None:
-        if bcnt_obj.ReadProperty(prop) != obj_val:
-            bcnt_obj.WriteProperty(prop, obj_val, direct=True)
+        if bcnt_obj.ReadProperty(propid) != obj_val:
+            bcnt_obj.WriteProperty(propid, obj_val, direct=True)
     else:
-        if isinstance(getattr(bcnt_obj, prop), BitString):  # need to split bitstring in if because library will only
-            # use arrayIndex for objects with the Array() class as a parent
+        print(bcnt_obj._properties[propid].datatype)
+        print(issubclass(bcnt_obj._properties[propid].datatype, BitString))
+        if issubclass(bcnt_obj._properties[propid].datatype, BitString):  # need to split bitstring in if because
+            # library will only use arrayIndex for objects with the Array() class as a parent
+            # values are not always stored as their datatype, merely as an acceptable input.  Ex: StatusFlags are
+            # stored as a list [0, 1, 0, 1] rather than the class StatusFlags([0, 1, 0, 1])
             if isinstance(arr_idx, str):
-                pass
+                if arr_idx in bcnt_obj._properties[propid].datatype.bitNames:
+                    bs_idx = bcnt_obj._properties[propid].datatype.bitNames[arr_idx]
+                else:
+                    return  # silent failure
             else:
                 bs_idx = arr_idx
-            pass
-        elif bcnt_obj.ReadProperty(prop, arrayIndex=arr_idx) != obj_val:
-            bcnt_obj.WriteProperty(prop, obj_val, arrayIndex=arr_idx, direct=True)
+
+            if bcnt_obj._values[propid][bs_idx] != obj_val:
+                arry = scopy(bcnt_obj._values[propid])
+                arry[bs_idx] = obj_val
+                bcnt_obj.WriteProperty(propid, arry, direct=True)
+        elif bcnt_obj.ReadProperty(propid, arrayIndex=arr_idx) != obj_val:
+            bcnt_obj.WriteProperty(propid, obj_val, arrayIndex=arr_idx, direct=True)
