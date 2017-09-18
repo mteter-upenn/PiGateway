@@ -49,7 +49,7 @@ modbus_ai_obj_def_vals = \
      'updateInterval': 3000,
      'units': 'noUnits',
      'minPresValue': 0,  # not sure if this does anything internally
-     'maxPresValue': 1,  # not sure if this has an effect
+     'maxPresValue': 1,  # not sure if this has an effect, 1.7014118E38 might be better value
      'resolution': 0,
      'covIncrement': 0,
      'modbusFunction': 'readHoldingRegisters',
@@ -176,8 +176,8 @@ class ModbusAnalogInputObject(Object):
          ReadableProperty('outOfService', Boolean),
          OptionalProperty('updateInterval', Unsigned),
          ReadableProperty('units', EngineeringUnits),
-         OptionalProperty('minPresValue', Real),
-         OptionalProperty('maxPresValue', Real),
+         OptionalProperty('minPresValue', Real, mutable=True),
+         OptionalProperty('maxPresValue', Real, mutable=True),
          OptionalProperty('resolution', Real),
          OptionalProperty('covIncrement', Real),
          # OptionalProperty('timeDelay', Unsigned),
@@ -323,13 +323,13 @@ class UpdateObjectsFromModbus(RecurringTask):
                         # change_object_prop_if_new(bcnt_obj, 'modbusCommErr', 'noFaultDetected')
                         # bcnt_obj._values['presentValue'] = obj_values['value']
                         bcnt_obj.WriteProperty('reliability', 'noFaultDetected', direct=True)
-                        print('reliability done')
+                        # print('reliability done')
                         change_object_prop_if_new(bcnt_obj, 'statusFlags', 0, arr_idx='fault')
-                        print('status flags done')
+                        # print('status flags done')
                         bcnt_obj.WriteProperty('modbusCommErr', 'noFaultDetected', direct=True)
-                        print('modbus comm err done')
+                        # print('modbus comm err done')
                         bcnt_obj.WriteProperty('presentValue', obj_values['value'], direct=True)
-                        print('pv done')
+                        # print('pv done')
             if _mb_bcnt_cls_debug: print('end of recurring')
 
 
@@ -338,8 +338,8 @@ def change_object_prop_if_new(bcnt_obj, propid, obj_val, arr_idx=None):
         if bcnt_obj.ReadProperty(propid) != obj_val:
             bcnt_obj.WriteProperty(propid, obj_val, direct=True)
     else:
-        print(bcnt_obj._properties[propid].datatype)
-        print(issubclass(bcnt_obj._properties[propid].datatype, BitString))
+        # print(bcnt_obj._properties[propid].datatype)
+        # print(issubclass(bcnt_obj._properties[propid].datatype, BitString))
         if issubclass(bcnt_obj._properties[propid].datatype, BitString):  # need to split bitstring in if because
             # library will only use arrayIndex for objects with the Array() class as a parent
             # values are not always stored as their datatype, merely as an acceptable input.  Ex: StatusFlags are
