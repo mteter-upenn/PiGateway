@@ -6,12 +6,13 @@ import os
 import json
 
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
+from bacpypes.consolelogging import ConfigArgumentParser
 # from bacpypes.consolelogging import ArgumentParser
 
 from bacpypes.core import run
 from bacpypes.comm import bind
 
-from bacpypes.pdu import Address, GlobalBroadcast  # , LocalBroadcast
+from bacpypes.pdu import Address  # , GlobalBroadcast  # , LocalBroadcast
 from bacpypes.netservice import NetworkServiceAccessPoint, NetworkServiceElement
 from bacpypes.bvllservice import BIPForeign, AnnexJCodec, UDPMultiplexer  # , BIPBBMD
 
@@ -19,11 +20,12 @@ from bacpypes.app import Application
 from bacpypes.appservice import StateMachineAccessPoint, ApplicationServiceAccessPoint
 from bacpypes.service.device import WhoIsIAmServices  # LocalDeviceObject,
 from bacpypes.service.object import ReadWritePropertyServices, ReadWritePropertyMultipleServices
+from bacpypes.service.cov import ChangeOfValueServices
 
 # from bacpypes.constructeddata import ArrayOf
 # from bacpypes.primitivedata import Real, Integer, CharacterString
 # from bacpypes.object import Property, register_object_type, AnalogInputObject, ReadableProperty  # , AnalogValueObject
-from bacpypes.basetypes import StatusFlags
+# from bacpypes.basetypes import StatusFlags
 
 from bacpypes.vlan import Network, Node
 # from bacpypes.errors import ExecutionError
@@ -55,7 +57,7 @@ def ip_to_bcnt_address(ipstr, mb_id):
 @bacpypes_debugging
 # ADDED ReadWritePropertyMultipleServices
 class ModbusVLANApplication(Application, WhoIsIAmServices, ReadWritePropertyServices,
-                            ReadWritePropertyMultipleServices):
+                            ReadWritePropertyMultipleServices, ChangeOfValueServices):
 
     def __init__(self, vlan_device, vlan_address, ase_id=None):
         if _debug: ModbusVLANApplication._debug("__init__ %r %r aseID=%r", vlan_device, vlan_address, ase_id)
@@ -108,13 +110,13 @@ class ModbusVLANApplication(Application, WhoIsIAmServices, ReadWritePropertyServ
         Application.confirmation(self, apdu)
 
     # ADDED
-    def do_WhoIsRequest(self, apdu):
-        print('whoisrequest from', apdu.pduSource)
-        # if apdu.pduSource == Address('0:128.91.135.13'):
-        #     apdu.pduSource = GlobalBroadcast()
-
-        # apdu.pduSource = GlobalBroadcast() # global or local broadcast?
-        WhoIsIAmServices.do_WhoIsRequest(self, apdu)
+    # def do_WhoIsRequest(self, apdu):
+    #     print('whoisrequest from', apdu.pduSource)
+    #     # if apdu.pduSource == Address('0:128.91.135.13'):
+    #     #     apdu.pduSource = GlobalBroadcast()
+    #
+    #     # apdu.pduSource = GlobalBroadcast() # global or local broadcast?
+    #     WhoIsIAmServices.do_WhoIsRequest(self, apdu)
 
     # def add_object(self, obj):
     #     Application.add_object(self, obj)
@@ -131,7 +133,7 @@ class ModbusVLANApplication(Application, WhoIsIAmServices, ReadWritePropertyServ
 @bacpypes_debugging
 class VLANRouter:
 
-    def __init__(self, local_address, local_network):
+    def __init__(self, local_address, local_network, foreign_address, bbmd_ttl=30):
         if _debug: VLANRouter._debug("__init__ %r %r", local_address, local_network)
 
         # a network service access point will be needed
@@ -151,9 +153,10 @@ class VLANRouter:
         # from WhoIsIAmForeign ForeignApplication
         # create a generic BIP stack, bound to the Annex J server
         # on the UDP multiplexer
+        self.bip = BIPForeign(Address(foreign_address), bbmd_ttl)
         # self.bip = BIPForeign(Address('10.166.1.72'), 30)
         # self.bip = BIPForeign(Address('192.168.1.10'), 30)
-        self.bip = BIPForeign(Address('130.91.139.99'), 30)
+        # self.bip = BIPForeign(Address('130.91.139.99'), 30)
         self.annexj = AnnexJCodec()
         self.mux = UDPMultiplexer(local_address, noBroadcast=True)
         # end
@@ -173,53 +176,25 @@ class VLANRouter:
 
 def main():
     # parse the command line arguments
-    # parser = ArgumentParser(
-    #     description=__doc__,
-    #     formatter_class=argparse.RawDescriptionHelpFormatter,
-    #     )
-    #
-    # # add an argument for interval
-    # parser.add_argument('addr1', type=str,
-    #       help='address of first network',
-    #       )
-    #
-    # # add an argument for interval
-    # parser.add_argument('net1', type=int,
-    #       help='network number of first network',
-    #       )
-    #
-    # # add an argument for interval
-    # parser.add_argument('addr2', type=str,
-    #       help='address of second network',
-    #       )
-    #
-    # # add an argument for interval
-    # parser.add_argument('net2', type=int,
-    #       help='network number of second network',
-    #       )
-    #
-    # # now parse the arguments
-    # args = parser.parse_args()
-    #
-    # if _debug: _log.debug("initialization")
-    # if _debug: _log.debug("    - args: %r", args)
+    args = ConfigArgumentParser(description=__doc__).parse_args()
 
-    # local_address = Address(args.addr1)
-    # local_network = args.net1
-    # vlan_address = Address(args.addr2)
-    # vlan_network = args.net2
+    modbusregisters._debug_modbus_registers = (args.ini.debugprint == 'True')
+    modbusbacnetclasses._mb_bcnt_cls_debug = (args.ini.debugprint == 'True')
 
-    local_address = Address('130.91.139.93/22')
-    # local_address = Address('10.166.1.250')
-    local_network = 0
-    # vlan_address = Address(5)
-    vlan_network = 9997
+    # local_address = Address('130.91.139.93/22')
+    # local_network = 0
+    # vlan_network = 9997
+
+    local_address = args.ini.localip
+    local_network = args.ini.localnetwork
+    vlan_network = args.ini.vlannetwork
+    foreign_address = args.ini.bbmdip
     max_apdu_len = 1024
     segmentation_support = 'noSegmentation'
     vendor_id = 15
 
     # create the VLAN router, bind it to the local network
-    router = VLANRouter(local_address, local_network)
+    router = VLANRouter(local_address, local_network, foreign_address)
 
     # create a VLAN
     vlan = Network()
@@ -231,21 +206,32 @@ def main():
     # bind the router stack to the vlan network through this node
     router.nsap.bind(router_node, vlan_network)
 
+    mb_to_bank_queue = queue.Queue()
+    bank_to_bcnt_queue = queue.Queue()
+
+    object_val_dict = {}
+    mb_req_dict = {}
+    unq_ip_last_resp_dict = {}
+    dev_dict = {}
+    app_dict = {}
+
     # bank_to_out_queue = queue.Queue()
-    out_to_bank_queue = queue.PriorityQueue()
+    # out_to_bank_queue = queue.PriorityQueue()
 
-    reg_reader = modbusregisters.RegisterReader(out_to_bank_queue)  # , bank_to_out_queue)
-    reg_bank = modbusregisters.RegisterBankThread(out_to_bank_queue)
-
-    dev_list = []
-    app_list = []
+    # reg_reader = modbusregisters.RegisterReader(out_to_bank_queue)  # , bank_to_out_queue)
+    # reg_bank = modbusregisters.RegisterBankThread(out_to_bank_queue)
+    #
+    # dev_list = []
+    # app_list = []
 
     for fn in os.listdir(os.getcwd() + '/DeviceList'):
-        if fn.endswith('.json') and fn.startswith('DRL'):
+        if fn.endswith('.json'):  # and fn.startswith('DRL'):
             print(os.getcwd() + '/DeviceList/' + fn)
             json_raw_str = open(os.getcwd() + '/DeviceList/' + fn, 'r')
             map_dict = json.load(json_raw_str)
-            good_inst = reg_bank.add_instance(map_dict)
+            # good_inst = reg_bank.add_instance(map_dict)
+            good_inst = modbusregisters.add_meter_instance_to_dicts(map_dict, mb_to_bank_queue, object_val_dict,
+                                                                    mb_req_dict, unq_ip_last_resp_dict)
             json_raw_str.close()
 
             # "deviceName": "DRL small steam",
@@ -269,7 +255,21 @@ def main():
                 dev_meter_model = map_dict['meterModelName']
                 dev_mb_port = map_dict['modbusPort']
 
-                dev_list.append(modbusbacnetclasses.ModbusLocalDevice(
+                # dev_list.append(modbusbacnetclasses.ModbusLocalDevice(
+                #     objectName=dev_name,
+                #     objectIdentifier=('device', dev_inst),
+                #     description=dev_desc,
+                #     maxApduLengthAccepted=max_apdu_len,
+                #     segmentationSupported=segmentation_support,
+                #     vendorIdentifier=vendor_id,
+                #     deviceIp=dev_ip,
+                #     modbusId=dev_mb_id,
+                #     modbusMapName=dev_map_name,
+                #     modbusMapRev=dev_map_rev,
+                #     deviceModelName=dev_meter_model,
+                #     modbusPort=dev_mb_port,
+                # ))
+                dev_dict[dev_inst] = modbusbacnetclasses.ModbusLocalDevice(
                     objectName=dev_name,
                     objectIdentifier=('device', dev_inst),
                     description=dev_desc,
@@ -282,13 +282,19 @@ def main():
                     modbusMapRev=dev_map_rev,
                     deviceModelName=dev_meter_model,
                     modbusPort=dev_mb_port,
-                ))
+                )
 
-                app_list.append(ModbusVLANApplication(dev_list[-1], ip_to_bcnt_address(dev_ip, dev_mb_id)))
-                vlan.add_node(app_list[-1].vlan_node)
+                # app_list.append(ModbusVLANApplication(dev_list[-1], ip_to_bcnt_address(dev_ip, dev_mb_id)))
+                # vlan.add_node(app_list[-1].vlan_node)
+                #
+                # services_supported = app_list[-1].get_services_supported()
+                # dev_list[-1].protocolServicesSupported = services_supported.value
 
-                services_supported = app_list[-1].get_services_supported()
-                dev_list[-1].protocolServicesSupported = services_supported.value
+                app_dict[dev_inst] = ModbusVLANApplication(dev_dict[dev_inst], ip_to_bcnt_address(dev_ip, dev_mb_id))
+                vlan.add_node(app_dict[dev_inst])
+
+                services_supported = app_dict[dev_inst].get_services_supported()
+                dev_dict[dev_inst].protocolServicesSupported = services_supported.value
 
                 val_types = {'holdingRegisters': 3, 'inputRegisters': 4, 'coilBits': 1, 'inputBits': 2}
 
@@ -298,6 +304,7 @@ def main():
                         continue
 
                     mb_dev_wo = map_dict[val_type]['wordOrder']
+                    mb_dev_poll_time = map_dict[val_type]['pollingTime']
 
                     for register in map_dict[val_type]['registers']:
                         # "objectName": "heat_flow_steam",
@@ -331,12 +338,23 @@ def main():
                         obj_pt_scale = register['pointScale']
                         obj_eq_m = (obj_pt_scale[3] - obj_pt_scale[2]) / (obj_pt_scale[1] - obj_pt_scale[0])
                         obj_eq_b = obj_pt_scale[2] - obj_eq_m * obj_pt_scale[0]
-                        print('m', obj_eq_m, 'b', obj_eq_b)
+                        # print('m', obj_eq_m, 'b', obj_eq_b)
 
-                        ravo = modbusbacnetclasses.ModbusAnalogInputObject(
-                            parent_device_inst=dev_inst,
-                            register_reader=reg_reader,
-                            rx_queue=queue.Queue(),
+                        maio = modbusbacnetclasses.ModbusAnalogInputObject(
+                            # parent_device_inst=dev_inst,
+                            # register_reader=reg_reader,
+                            # rx_queue=queue.Queue(),
+                            # objectIdentifier=('analogInput', obj_inst),
+                            # objectName=obj_name,
+                            # description=obj_description,
+                            # modbusFunction=mb_func,
+                            # registerStart=obj_reg_start,
+                            # numberOfRegisters=obj_num_regs,
+                            # registerFormat=obj_reg_format,
+                            # wordOrder=mb_dev_wo,
+                            # modbusScaling=modbusbacnetclasses.ModbusScaling([obj_eq_m, obj_eq_b]),
+                            # units=obj_units_id,
+                            # statusFlags=StatusFlags([0, 1, 0, 0]),
                             objectIdentifier=('analogInput', obj_inst),
                             objectName=obj_name,
                             description=obj_description,
@@ -345,12 +363,20 @@ def main():
                             numberOfRegisters=obj_num_regs,
                             registerFormat=obj_reg_format,
                             wordOrder=mb_dev_wo,
-                            modbusScaling=modbusbacnetclasses.ModbusScaling([obj_eq_m, obj_eq_b]),
+                            modbusScaling=[obj_eq_m, obj_eq_b],
                             units=obj_units_id,
-                            statusFlags=StatusFlags([0, 1, 0, 0]),
+                            covIncrement=0.0,
+                            updateInterval=(mb_dev_poll_time / 10.0),
+                            resolution=0.0,
+                            reliability='communicationFailure',
+                            statusFlags=[0, 1, 0, 0],
+                            modbusCommErr='noTcpConnection',
+                            eventState='normal',
+                            outOfService=False,
                         )
-                        # _log.debug("    - ravo: %r", ravo)
-                        app_list[-1].add_object(ravo)
+                        # _log.debug("    - maio: %r", maio)
+                        # app_list[-1].add_object(maio)
+                        app_dict[dev_inst].add_object(maio)
 
     # # device identifier is assigned from the address
     # # device_instance = vlan_network * 100 + int(args.addr2)
@@ -408,34 +434,43 @@ def main():
     # # ADDED
     #
     # # make a random value object
-    # # ravo = RandomAnalogValueObject(
+    # # maio = RandomAnalogValueObject(
     # #     objectIdentifier=('analogValue', 1),
     # #     objectName='Device%d/Random1' % (device_instance,),
     # #     )
-    # ravo = modbusbacnetclasses.ModbusAnalogInputObject(device_instance, reg_reader,
+    # maio = modbusbacnetclasses.ModbusAnalogInputObject(device_instance, reg_reader,
     #     objectIdentifier=('analogInput', 1),
     #     objectName='Device%d/Modbus1' % (device_instance,),
     # )
-    # _log.debug("    - ravo1: %r", ravo)
+    # _log.debug("    - ravo1: %r", maio)
     #
     # # add it to the device
-    # vlan_app.add_object(ravo)
+    # vlan_app.add_object(maio)
     #
     # # make a random value object
-    # ravo = modbusbacnetclasses.ModbusAnalogInputObject(device_instance2, reg_reader,
+    # maio = modbusbacnetclasses.ModbusAnalogInputObject(device_instance2, reg_reader,
     #     objectIdentifier=('analogInput', 1),
     #     objectName='Device%d/Modbus1' % (device_instance2,),
     # )
     #
     # # add it to the device
-    # vlan_app2.add_object(ravo)
+    # vlan_app2.add_object(maio)
+
+    print('init modbus bank')
+    obj_val_bank = modbusregisters.ModbusFormatAndStorage(mb_to_bank_queue, bank_to_bcnt_queue, object_val_dict)
+
+    print('init modbus req launcher')
+    mb_req_launcher = modbusregisters.ModbusRequestLauncher(mb_req_dict, unq_ip_last_resp_dict)
+
+    print('init update objects task')
+    update_objects = modbusbacnetclasses.UpdateObjectsFromModbus(bank_to_bcnt_queue, app_dict, 1000)
+
+    print('start bank and launcher')
+    obj_val_bank.start()
+    mb_req_launcher.start()
 
     _log.debug("running")
-
-    # print('register bank start')
-    # reg_bank.start()
-
-    print('run')
+    print('bacnet start')
     run()
 
     _log.debug("fini")

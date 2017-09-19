@@ -1,4 +1,4 @@
-# import time
+import time
 from queue import Empty
 from copy import copy as scopy
 
@@ -266,22 +266,22 @@ register_object_type(ModbusLocalDevice)
 
 @bacpypes_debugging
 class UpdateObjectsFromModbus(RecurringTask):
-    def __init__(self, bank_to_bcnt_queue, app_dict, interval):  # , max_run_time=10):
+    def __init__(self, bank_to_bcnt_queue, app_dict, interval, max_run_time=1000):
         RecurringTask.__init__(self, interval)
 
         self.bank_to_bcnt_queue = bank_to_bcnt_queue
         self.app_dict = app_dict
-        # self.max_run_time = max_run_time / 1000  # set in ms to coincide with interval
+        self.max_run_time = max_run_time / 1000  # set in ms to coincide with interval
 
         # install it
         self.install_task()
 
     def process_task(self):
-        # start_time = time.time()
+        start_time = time.time()
         if _mb_bcnt_cls_debug: print('start recurring task')
 
-        # while (not self.bank_to_bcnt_queue.empty()) and (time.time() - start_time < self.max_run_time):
-        if not self.bank_to_bcnt_queue.empty():
+        while (not self.bank_to_bcnt_queue.empty()) and (time.time() - start_time < self.max_run_time):
+        # if not self.bank_to_bcnt_queue.empty():
             if _mb_bcnt_cls_debug: print('\tqueue not empty')
 
             try:
@@ -298,17 +298,21 @@ class UpdateObjectsFromModbus(RecurringTask):
                 if dev_inst not in self.app_dict:
                     continue
 
+                if _mb_bcnt_cls_debug: print('\tdev inst:', dev_inst, '-',
+                                             self.app_dict[dev_inst].localDevice.objectName)
+
                 for obj_inst, obj_values in val_dict[dev_inst].items():
-                    if _mb_bcnt_cls_debug: print('\tobject instance', obj_inst)
+                    if _mb_bcnt_cls_debug: print('\t\t', obj_inst, end=' - ')
 
                     if obj_inst not in self.app_dict[dev_inst].objectIdentifier:
-                        # print('\t\tobject instance not in application dict')
+                        if _mb_bcnt_cls_debug: print('OBJECT INSTANCE NOT IN APPLICATION DICT')
                         continue
 
-                    # print('\t\tobject instance in application dict')
-                    if _mb_bcnt_cls_debug: print('\t\tobject value', obj_values)
-
                     bcnt_obj = self.app_dict[dev_inst].objectIdentifier[obj_inst]
+
+                    if _mb_bcnt_cls_debug: print(bcnt_obj.objectName)
+
+                    if _mb_bcnt_cls_debug: print('\t\t\t', obj_values)
 
                     if obj_values['error'] != 0:
                         # change_object_prop_if_new(bcnt_obj, 'reliability', 'communicationFailure')
@@ -330,7 +334,8 @@ class UpdateObjectsFromModbus(RecurringTask):
                         # print('modbus comm err done')
                         bcnt_obj.WriteProperty('presentValue', obj_values['value'], direct=True)
                         # print('pv done')
-            if _mb_bcnt_cls_debug: print('end of recurring')
+            if _mb_bcnt_cls_debug: print('end of loop')
+        if _mb_bcnt_cls_debug: print('end of recurring')
 
 
 def change_object_prop_if_new(bcnt_obj, propid, obj_val, arr_idx=None):
