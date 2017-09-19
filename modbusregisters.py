@@ -84,7 +84,7 @@ class ModbusRequestLauncher(threading.Thread):
         # time_at_loop_start = time.time()
         for reg_clstr, clstr_val in self._register_clusters.items():
             # if clstr_val[1] < time_at_loop_start:
-            time.sleep(0.5)
+            time.sleep(0.3)
             cur_time = time.time()
             new_expected_run_time = max(cur_time, self._unq_ip_last_req[clstr_val[3]] + 0.5)
             self._unq_ip_last_req[clstr_val[3]] = new_expected_run_time
