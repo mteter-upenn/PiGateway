@@ -1,3 +1,4 @@
+from bacpypes.debugging import bacpypes_debugging, ModuleLogger
 from queue import Empty  # , Full
 import threading
 from mbpy.mb_poll import mb_poll
@@ -5,7 +6,9 @@ import time
 from struct import pack, unpack
 # from pprint import pprint
 
-_debug_modbus_registers = False
+_debug = 0
+_log = ModuleLogger(globals())
+# _debug_modbus_registers = False
 
 # globals
 one_register_formats = ('uint16', 'sint16', 'sm1k16', 'sm10k16', 'bin', 'hex', 'ascii')
@@ -806,7 +809,7 @@ def format_registers_to_point(registers, reg_frmt, reg_wo, slope=1, intercept=0)
 #             pt_val = 0.0
 #         return pt_val
 
-
+@bacpypes_debugging
 class ModbusPollThread(threading.Thread):
     def __init__(self, tx_queue, bcnt_instance, ip, mb_id, mb_func, register, num_regs, timeout, port, object_list):
         threading.Thread.__init__(self, daemon=False)  # should finish with comms first
@@ -827,7 +830,9 @@ class ModbusPollThread(threading.Thread):
         if not self.currently_running:
             self.currently_running = True
             time.sleep(delay)
-            if _debug_modbus_registers: print('making modbus request for', self.ip, self.mb_id, 'at', time.time())
+
+            if _debug: ModbusPollThread._debug('making modbus request for %s %s at %s', self.ip, self.mb_id,
+                                               time.time())
             # print('ip:   ', self.ip)
             # print('id:   ', self.mb_id)
             # print('func: ', self.mb_func)
@@ -840,12 +845,12 @@ class ModbusPollThread(threading.Thread):
                        'mb_resp_time': time.time(), 'obj_list': self.object_list}
             self.tx_queue.put(tx_resp, 0.1)
             if otpt[0] == 'Err':
-                if _debug_modbus_registers: print('got modbus error', otpt)
+                if _debug: ModbusPollThread._debug('got modbus error %s', otpt)
             else:
-                if _debug_modbus_registers: print('got modbus response')
+                if _debug: ModbusPollThread._debug('got modbus response')
             self.currently_running = False
         else:
-            if _debug_modbus_registers: print('currently running')
+            if _debug: ModbusPollThread._debug('currently running')
 
 
 # class TupleSortingOn0(tuple):

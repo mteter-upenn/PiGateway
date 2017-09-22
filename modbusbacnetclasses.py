@@ -12,14 +12,14 @@ from bacpypes.task import RecurringTask
 
 # from bacpypes.errors import ExecutionError
 
-from bacpypes.basetypes import PropertyIdentifier, Reliability, EngineeringUnits, StatusFlags, EventState
+from bacpypes.basetypes import PropertyIdentifier, Reliability, EngineeringUnits, StatusFlags, EventState, EventTransitionBits
 # LimitEnable, EventTransitionBits, NotifyType, TimeStamp, ObjectPropertyReference
 
 _debug = 0
 _log = ModuleLogger(globals())
 
 # set module debugger flag
-_mb_bcnt_cls_debug = False
+# _mb_bcnt_cls_debug = False
 
 PropertyIdentifier.enumerations['modbusFunction'] = 3000000
 PropertyIdentifier.enumerations['registerStart'] = 3000001
@@ -187,7 +187,7 @@ class ModbusAnalogInputObject(Object):
          # OptionalProperty('deadband', Real),
          # OptionalProperty('limitEnable', LimitEnable),
          # OptionalProperty('eventEnable', EventTransitionBits),
-         # OptionalProperty('ackedTransitions', EventTransitionBits),
+         OptionalProperty('ackedTransitions', EventTransitionBits),
          # OptionalProperty('notifyType', NotifyType),
          # OptionalProperty('eventTimeStamps', ArrayOf(TimeStamp)),
          # OptionalProperty('eventMessageTexts', ArrayOf(CharacterString)),
@@ -233,15 +233,15 @@ class ModbusAnalogInputObject(Object):
         # set unassigned properties to default values
         for propid, prop in self._properties.items():
             if prop.ReadProperty(self) is None and propid in modbus_ai_obj_def_vals:
-                if _mb_bcnt_cls_debug: print(self.objectName, propid, 'was not set, default is',
+                if _debug: ModbusAnalogInputObject._debug('%s %s was not set, default is %s', self.objectName, propid,
                                              modbus_ai_obj_def_vals[propid])
 
                 prop.WriteProperty(self, modbus_ai_obj_def_vals[propid], direct=True)
 
     def ReadProperty(self, propid, arrayIndex=None):
-        if _mb_bcnt_cls_debug: print(propid, getattr(self, propid), end=', ')  # might need self._values[propid]
+        if _debug: ModbusAnalogInputObject._debug('BACnet REQUEST: %s %s', propid, getattr(self, propid))  # might need self._values[propid]
         value = Object.ReadProperty(self, propid, arrayIndex=arrayIndex)
-        if _mb_bcnt_cls_debug: print('value:', value)
+        if _debug: ModbusAnalogInputObject._debug('value: %s', value)
         return value
 
 
@@ -260,13 +260,13 @@ class ModbusLocalDevice(LocalDeviceObject):
         # ReadableProperty('wordOrder', CharacterString)
     ]
 
-
 register_object_type(ModbusLocalDevice)
 
 
 @bacpypes_debugging
 class UpdateObjectsFromModbus(RecurringTask):
-    def __init__(self, bank_to_bcnt_queue, app_dict, interval, max_run_time=1000):
+    def __init__(self, bank_to_bcnt_queue, app_dict, interval, max_run_time=50):
+        if _debug: UpdateObjectsFromModbus._debug('init')
         RecurringTask.__init__(self, interval)
 
         self.bank_to_bcnt_queue = bank_to_bcnt_queue
@@ -278,41 +278,42 @@ class UpdateObjectsFromModbus(RecurringTask):
 
     def process_task(self):
         start_time = time.time()
-        if _mb_bcnt_cls_debug: print('start recurring task')
+        if _debug: UpdateObjectsFromModbus._debug('start recurring task')
 
         while (not self.bank_to_bcnt_queue.empty()) and (time.time() - start_time < self.max_run_time):
-        # if not self.bank_to_bcnt_queue.empty():
-            if _mb_bcnt_cls_debug: print('\tqueue not empty')
+            # if not self.bank_to_bcnt_queue.empty():
+            if _debug: UpdateObjectsFromModbus._debug('\tqueue not empty')
 
             try:
                 val_dict = self.bank_to_bcnt_queue.get_nowait()
-                if _mb_bcnt_cls_debug: print('\tgot bacnet update')
+                if _debug: UpdateObjectsFromModbus._debug('\tgot bacnet update')
             except Empty:
-                if _mb_bcnt_cls_debug: print('\tno bacnet update')
+                if _debug: UpdateObjectsFromModbus._debug('\tno bacnet update')
                 # continue
                 return
 
-            if _mb_bcnt_cls_debug: print('\tpost try')
+            if _debug: UpdateObjectsFromModbus._debug('\tpost try')
 
             for dev_inst in val_dict.keys():
                 if dev_inst not in self.app_dict:
                     continue
 
-                if _mb_bcnt_cls_debug: print('\tdev inst:', dev_inst, '-',
-                                             self.app_dict[dev_inst].localDevice.objectName)
+                if _debug: UpdateObjectsFromModbus._debug('\tdev inst: %s - %s', dev_inst,
+                                         self.app_dict[dev_inst].localDevice.objectName)
 
                 for obj_inst, obj_values in val_dict[dev_inst].items():
-                    if _mb_bcnt_cls_debug: print('\t\t', obj_inst, end=' - ')
+                    # if _debug: UpdateObjectsFromModbus._debug('\t\t%s - ', obj_inst, end='')
 
                     if obj_inst not in self.app_dict[dev_inst].objectIdentifier:
-                        if _mb_bcnt_cls_debug: print('OBJECT INSTANCE NOT IN APPLICATION DICT')
+                        if _debug: UpdateObjectsFromModbus._debug('\t\t%s - OBJECT INSTANCE NOT IN APPLICATION DICT',
+                                                                  obj_inst)
                         continue
 
                     bcnt_obj = self.app_dict[dev_inst].objectIdentifier[obj_inst]
 
-                    if _mb_bcnt_cls_debug: print(bcnt_obj.objectName)
+                    if _debug: UpdateObjectsFromModbus._debug('\t\t%s - %s', obj_inst, bcnt_obj.objectName)
 
-                    if _mb_bcnt_cls_debug: print('\t\t\t', obj_values)
+                    if _debug: UpdateObjectsFromModbus._debug('\t\t\t%s', obj_values)
 
                     if obj_values['error'] != 0:
                         # change_object_prop_if_new(bcnt_obj, 'reliability', 'communicationFailure')
@@ -334,8 +335,8 @@ class UpdateObjectsFromModbus(RecurringTask):
                         # print('modbus comm err done')
                         bcnt_obj.WriteProperty('presentValue', obj_values['value'], direct=True)
                         # print('pv done')
-            if _mb_bcnt_cls_debug: print('end of loop')
-        if _mb_bcnt_cls_debug: print('end of recurring')
+            if _debug: UpdateObjectsFromModbus._debug('end of loop')
+        if _debug: UpdateObjectsFromModbus._debug('end of recurring')
 
 
 def change_object_prop_if_new(bcnt_obj, propid, obj_val, arr_idx=None):

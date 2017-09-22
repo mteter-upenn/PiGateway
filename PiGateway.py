@@ -136,6 +136,15 @@ class VLANRouter:
     def __init__(self, local_address, local_network, foreign_address, bbmd_ttl=30):
         if _debug: VLANRouter._debug("__init__ %r %r", local_address, local_network)
 
+        if isinstance(local_address, Address):
+            self.local_address = local_address
+        else:
+            self.local_address = Address(local_address)
+
+        if isinstance(foreign_address, Address):
+            self.foreign_address = foreign_address
+        else:
+            self.foreign_address = Address(foreign_address)
         # a network service access point will be needed
         self.nsap = NetworkServiceAccessPoint()
 
@@ -153,12 +162,12 @@ class VLANRouter:
         # from WhoIsIAmForeign ForeignApplication
         # create a generic BIP stack, bound to the Annex J server
         # on the UDP multiplexer
-        self.bip = BIPForeign(Address(foreign_address), bbmd_ttl)
+        self.bip = BIPForeign(self.foreign_address, bbmd_ttl)
         # self.bip = BIPForeign(Address('10.166.1.72'), 30)
         # self.bip = BIPForeign(Address('192.168.1.10'), 30)
         # self.bip = BIPForeign(Address('130.91.139.99'), 30)
         self.annexj = AnnexJCodec()
-        self.mux = UDPMultiplexer(local_address, noBroadcast=True)
+        self.mux = UDPMultiplexer(self.local_address)  # , noBroadcast=False)
         # end
         # self.bip.add_peer(Address('10.166.1.72'))
         # ADDED
@@ -167,7 +176,7 @@ class VLANRouter:
         bind(self.bip, self.annexj, self.mux.annexJ)
 
         # bind the BIP stack to the local network
-        self.nsap.bind(self.bip, local_network, local_address)
+        self.nsap.bind(self.bip, local_network, self.local_address)
 
 
 #
@@ -178,17 +187,17 @@ def main():
     # parse the command line arguments
     args = ConfigArgumentParser(description=__doc__).parse_args()
 
-    modbusregisters._debug_modbus_registers = (args.ini.debugprint == 'True')
-    modbusbacnetclasses._mb_bcnt_cls_debug = (args.ini.debugprint == 'True')
+    # modbusregisters._debug_modbus_registers = (args.ini.debugprint == 'True')
+    # modbusbacnetclasses._mb_bcnt_cls_debug = (args.ini.debugprint == 'True')
 
     # local_address = Address('130.91.139.93/22')
     # local_network = 0
     # vlan_network = 9997
 
-    local_address = args.ini.localip
-    local_network = args.ini.localnetwork
-    vlan_network = args.ini.vlannetwork
-    foreign_address = args.ini.bbmdip
+    local_address = Address(args.ini.localip)
+    local_network = int(args.ini.localnetwork)
+    vlan_network = int(args.ini.vlannetwork)
+    foreign_address = Address(args.ini.bbmdip)
     max_apdu_len = 1024
     segmentation_support = 'noSegmentation'
     vendor_id = 15
@@ -291,7 +300,7 @@ def main():
                 # dev_list[-1].protocolServicesSupported = services_supported.value
 
                 app_dict[dev_inst] = ModbusVLANApplication(dev_dict[dev_inst], ip_to_bcnt_address(dev_ip, dev_mb_id))
-                vlan.add_node(app_dict[dev_inst])
+                vlan.add_node(app_dict[dev_inst].vlan_node)
 
                 services_supported = app_dict[dev_inst].get_services_supported()
                 dev_dict[dev_inst].protocolServicesSupported = services_supported.value
@@ -366,7 +375,7 @@ def main():
                             modbusScaling=[obj_eq_m, obj_eq_b],
                             units=obj_units_id,
                             covIncrement=0.0,
-                            updateInterval=(mb_dev_poll_time / 10.0),
+                            updateInterval=int(mb_dev_poll_time / 10.0),
                             resolution=0.0,
                             reliability='communicationFailure',
                             statusFlags=[0, 1, 0, 0],
