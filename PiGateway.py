@@ -167,7 +167,7 @@ class VLANRouter:
         # self.bip = BIPForeign(Address('192.168.1.10'), 30)
         # self.bip = BIPForeign(Address('130.91.139.99'), 30)
         self.annexj = AnnexJCodec()
-        self.mux = UDPMultiplexer(self.local_address)  # , noBroadcast=False)
+        self.mux = UDPMultiplexer(self.local_address, noBroadcast=True)
         # end
         # self.bip.add_peer(Address('10.166.1.72'))
         # ADDED
