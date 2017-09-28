@@ -97,9 +97,9 @@ class ModbusVLANApplication(Application, WhoIsIAmServices, ReadWritePropertyServ
         if _debug: ModbusVLANApplication._debug("[%s]request %r", self.vlan_node.address, apdu)
         Application.request(self, apdu)
 
-    def indication(self, apdu):
+    def indication(self, apdu, forwarded=False):
         if _debug: ModbusVLANApplication._debug("[%s]indication %r", self.vlan_node.address, apdu)
-        Application.indication(self, apdu)
+        Application.indication(self, apdu, forwarded=forwarded)
 
     def response(self, apdu):
         if _debug: ModbusVLANApplication._debug("[%s]response %r", self.vlan_node.address, apdu)
