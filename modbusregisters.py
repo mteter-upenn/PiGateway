@@ -191,7 +191,7 @@ def add_meter_instance_to_dicts(meter_map_dict, mb_to_bank_queue, object_bank, m
 
         if mb_grp_cons and mb_grp_gaps:  # clusters should span multiple points and registers we won't record
             last_iter_reg = raw_regs_list[0][1]
-            print('GROUP CONSECUTIVE AND GAPPED REGISTERS')
+            # print('GROUP CONSECUTIVE AND GAPPED REGISTERS')
             for mb_obj in raw_regs_list:
                 object_inst_list.append(mb_obj[2])
 
@@ -201,8 +201,8 @@ def add_meter_instance_to_dicts(meter_map_dict, mb_to_bank_queue, object_bank, m
                                                       clstr_reg_start, last_iter_reg - clstr_reg_start
                                                       + 1, mb_request_timeout, mb_port, object_inst_list)
                     modbus_requests[(bcnt_inst, clstr)] = [mb_poll_thread, trigger_time, mb_polling_time, mb_ip]
-                    print(bcnt_inst, clstr, 'mb_id:', mb_id, 'mb_func:', mb_func, 'start:', clstr_reg_start, 'len:',
-                          last_iter_reg - clstr_reg_start + 1, 'obj list:', object_inst_list)
+                    # print(bcnt_inst, clstr, 'mb_id:', mb_id, 'mb_func:', mb_func, 'start:', clstr_reg_start, 'len:',
+                    #       last_iter_reg - clstr_reg_start + 1, 'obj list:', object_inst_list)
                     object_inst_list = [mb_obj[2]]  # start next object list with the instance that doesn't fit here
 
                     clstr += 1  # tick clstr counter
@@ -213,12 +213,12 @@ def add_meter_instance_to_dicts(meter_map_dict, mb_to_bank_queue, object_bank, m
                                                       clstr_reg_start, last_iter_reg - clstr_reg_start
                                                       + 1, mb_request_timeout, mb_port, object_inst_list)
                     modbus_requests[(bcnt_inst, clstr)] = [mb_poll_thread, trigger_time, mb_polling_time, mb_ip]
-                    print(bcnt_inst, clstr, 'mb_id:', mb_id, 'mb_func:', mb_func, 'start:', clstr_reg_start, 'len:',
-                          last_iter_reg - clstr_reg_start + 1, 'obj list:', object_inst_list)
+                    # print(bcnt_inst, clstr, 'mb_id:', mb_id, 'mb_func:', mb_func, 'start:', clstr_reg_start, 'len:',
+                    #       last_iter_reg - clstr_reg_start + 1, 'obj list:', object_inst_list)
                 last_iter_reg = mb_obj[1]
         elif mb_grp_cons:
             last_iter_reg = raw_regs_list[0][1]
-            print('GROUP CONSECUTIVE REGISTERS')
+            # print('GROUP CONSECUTIVE REGISTERS')
             for mb_obj in raw_regs_list:
                 object_inst_list.append(mb_obj[2])
 
@@ -229,8 +229,8 @@ def add_meter_instance_to_dicts(meter_map_dict, mb_to_bank_queue, object_bank, m
                                                       clstr_reg_start, last_iter_reg - clstr_reg_start
                                                       + 1, mb_request_timeout, mb_port, object_inst_list)
                     modbus_requests[(bcnt_inst, clstr)] = [mb_poll_thread, trigger_time, mb_polling_time, mb_ip]
-                    print(bcnt_inst, clstr, 'mb_id:', mb_id, 'mb_func:', mb_func, 'start:', clstr_reg_start, 'len:',
-                          last_iter_reg - clstr_reg_start + 1, 'obj list:', object_inst_list)
+                    # print(bcnt_inst, clstr, 'mb_id:', mb_id, 'mb_func:', mb_func, 'start:', clstr_reg_start, 'len:',
+                    #       last_iter_reg - clstr_reg_start + 1, 'obj list:', object_inst_list)
                     object_inst_list = [mb_obj[2]]  # start next object list with the instance that doesn't fit here
 
                     clstr += 1  # tick clstr counter
@@ -241,18 +241,18 @@ def add_meter_instance_to_dicts(meter_map_dict, mb_to_bank_queue, object_bank, m
                                                       clstr_reg_start, last_iter_reg - clstr_reg_start
                                                       + 1, mb_request_timeout, mb_port, object_inst_list)
                     modbus_requests[(bcnt_inst, clstr)] = [mb_poll_thread, trigger_time, mb_polling_time, mb_ip]
-                    print(bcnt_inst, clstr, 'mb_id:', mb_id, 'mb_func:', mb_func, 'start:', clstr_reg_start, 'len:',
-                          last_iter_reg - clstr_reg_start + 1, 'obj list:', object_inst_list)
+                    # print(bcnt_inst, clstr, 'mb_id:', mb_id, 'mb_func:', mb_func, 'start:', clstr_reg_start, 'len:',
+                    #       last_iter_reg - clstr_reg_start + 1, 'obj list:', object_inst_list)
                 last_iter_reg = mb_obj[1]
         else:
-            print('NO REGISTER GROUPING')
+            # print('NO REGISTER GROUPING')
             for mb_obj in raw_regs_list:
                 mb_poll_thread = ModbusPollThread(mb_to_bank_queue, bcnt_inst, mb_ip, mb_id, mb_func,
                                                   mb_obj[0], mb_obj[1] - mb_obj[0] + 1, mb_request_timeout, mb_port,
                                                   [mb_obj[2]])
                 modbus_requests[(bcnt_inst, clstr)] = [mb_poll_thread, trigger_time, mb_polling_time, mb_ip]
-                print(bcnt_inst, clstr, 'mb_id:', mb_id, 'mb_func:', mb_func, 'start:', mb_obj[0], 'len:',
-                      mb_obj[1] - mb_obj[0] + 1, 'obj list:', [mb_obj[2]])
+                # print(bcnt_inst, clstr, 'mb_id:', mb_id, 'mb_func:', mb_func, 'start:', mb_obj[0], 'len:',
+                #       mb_obj[1] - mb_obj[0] + 1, 'obj list:', [mb_obj[2]])
                 clstr += 1
         #     for ii in range(num_map_regs):
         #         if raw_regs_list[ii][2] - clstr_reg_start > 125 or ii == num_map_regs - 1:
