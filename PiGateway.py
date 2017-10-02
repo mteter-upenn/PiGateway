@@ -93,12 +93,12 @@ class ModbusVLANApplication(Application, WhoIsIAmServices, ReadWritePropertyServ
         # set register reader class that will look into block of registers for all associated slaves
         # self.register_reader = register_reader
 
-    def request(self, apdu):
+    def request(self, apdu, forwarded=False):
         if _debug: ModbusVLANApplication._debug("[%s]request %r", self.vlan_node.address, apdu)
-        Application.request(self, apdu)
+        Application.request(self, apdu, forwarded)
 
     def indication(self, apdu, forwarded=False):
-        if _debug: ModbusVLANApplication._debug("[%s]indication %r", self.vlan_node.address, apdu)
+        if _debug: ModbusVLANApplication._debug("[%s]indication %r %r", self.vlan_node.address, apdu, forwarded)
         Application.indication(self, apdu, forwarded=forwarded)
 
     def response(self, apdu):
