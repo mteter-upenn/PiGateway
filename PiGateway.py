@@ -95,19 +95,19 @@ class ModbusVLANApplication(Application, WhoIsIAmServices, ReadWritePropertyServ
 
     def request(self, apdu, forwarded=False):
         if _debug: ModbusVLANApplication._debug("[%s]request %r", self.vlan_node.address, apdu)
-        Application.request(self, apdu, forwarded)
+        Application.request(self, apdu, forwarded=forwarded)
 
     def indication(self, apdu, forwarded=False):
         if _debug: ModbusVLANApplication._debug("[%s]indication %r %r", self.vlan_node.address, apdu, forwarded)
         Application.indication(self, apdu, forwarded=forwarded)
 
-    def response(self, apdu):
+    def response(self, apdu, forwarded=False):
         if _debug: ModbusVLANApplication._debug("[%s]response %r", self.vlan_node.address, apdu)
-        Application.response(self, apdu)
+        Application.response(self, apdu, forwarded=forwarded)
 
-    def confirmation(self, apdu):
+    def confirmation(self, apdu, forwarded=False):
         if _debug: ModbusVLANApplication._debug("[%s]confirmation %r", self.vlan_node.address, apdu)
-        Application.confirmation(self, apdu)
+        Application.confirmation(self, apdu, forwarded=forwarded)
 
     # ADDED
     # def do_WhoIsRequest(self, apdu):
