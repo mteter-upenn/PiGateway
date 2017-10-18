@@ -2,7 +2,7 @@
 
 # import random
 # import argparse
-import os
+import os, sys
 import json
 
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
@@ -233,10 +233,10 @@ def main():
     # dev_list = []
     # app_list = []
 
-    for fn in os.listdir(os.getcwd() + '/DeviceList'):
+    for fn in os.listdir(sys.path[0] + '/DeviceList'):
         if fn.endswith('.json'):  # and fn.startswith('DRL'):
-            print(os.getcwd() + '/DeviceList/' + fn)
-            json_raw_str = open(os.getcwd() + '/DeviceList/' + fn, 'r')
+            print(sys.path[0] + '/DeviceList/' + fn)
+            json_raw_str = open(sys.path[0] + '/DeviceList/' + fn, 'r')
             map_dict = json.load(json_raw_str)
             # good_inst = reg_bank.add_instance(map_dict)
             good_inst = modbusregisters.add_meter_instance_to_dicts(map_dict, mb_to_bank_queue, object_val_dict,

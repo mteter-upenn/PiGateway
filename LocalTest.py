@@ -8,7 +8,7 @@ It assumes that almost all of the default behaviour of a BACpypes application is
 sufficient.
 """
 
-import os
+import sys
 import json
 # import random
 # import argparse
@@ -87,8 +87,8 @@ def main():
     # for fn in os.listdir(os.getcwd() + '/DeviceList'):
     #     if fn.endswith('.json') and fn.startswith('DGL'):
 
-    print(os.getcwd() + '/' + args.ini.meterfile)
-    json_raw_str = open(os.getcwd() + '/' + args.ini.meterfile, 'r')
+    print(sys.path[0] + '/' + args.ini.meterfile)
+    json_raw_str = open(sys.path[0] + '/' + args.ini.meterfile, 'r')
     map_dict = json.load(json_raw_str)
     # good_inst = reg_bank.add_instance(map_dict)
     good_inst = modbusregisters.add_meter_instance_to_dicts(map_dict, mb_to_bank_queue, object_val_dict, mb_req_dict,
