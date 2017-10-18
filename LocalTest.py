@@ -8,10 +8,10 @@ It assumes that almost all of the default behaviour of a BACpypes application is
 sufficient.
 """
 
-import os
+import sys
 import json
 # import random
-import argparse
+# import argparse
 
 from bacpypes.debugging import ModuleLogger, bacpypes_debugging
 from bacpypes.consolelogging import ConfigArgumentParser
@@ -21,7 +21,7 @@ from bacpypes.core import run
 # from bacpypes.primitivedata import BitString  # Real
 # from bacpypes.object import AnalogValueObject, Property, register_object_type
 # from bacpypes.errors import ExecutionError
-from bacpypes.basetypes import StatusFlags
+# from bacpypes.basetypes import StatusFlags
 
 from bacpypes.app import BIPSimpleApplication
 from bacpypes.service.object import ReadWritePropertyMultipleServices
@@ -67,8 +67,8 @@ def main():
     # parser.add_argument('--debugprint', action='store_true', help='Print potentially helpful data to cmd line.')
     # args = parser.parse_args()
 
-    modbusregisters._debug_modbus_registers = (args.ini.debugprint == 'True')
-    modbusbacnetclasses._mb_bcnt_cls_debug = (args.ini.debugprint == 'True')
+    # modbusregisters._debug_modbus_registers = (args.ini.debugprint == 'True')
+    # modbusbacnetclasses._mb_bcnt_cls_debug = (args.ini.debugprint == 'True')
 
     max_apdu_len = 1024
     segmentation_support = 'segmentedBoth'
@@ -87,8 +87,8 @@ def main():
     # for fn in os.listdir(os.getcwd() + '/DeviceList'):
     #     if fn.endswith('.json') and fn.startswith('DGL'):
 
-    print(os.getcwd() + '/' + args.ini.meterfile)
-    json_raw_str = open(os.getcwd() + '/' + args.ini.meterfile, 'r')
+    print(sys.path[0] + '/' + args.ini.meterfile)
+    json_raw_str = open(sys.path[0] + '/' + args.ini.meterfile, 'r')
     map_dict = json.load(json_raw_str)
     # good_inst = reg_bank.add_instance(map_dict)
     good_inst = modbusregisters.add_meter_instance_to_dicts(map_dict, mb_to_bank_queue, object_val_dict, mb_req_dict,
@@ -196,7 +196,7 @@ def main():
                     modbusScaling=[obj_eq_m, obj_eq_b],
                     units=obj_units_id,
                     covIncrement=0.0,
-                    updateInterval=(mb_dev_poll_time / 10.0),
+                    updateInterval=int(mb_dev_poll_time / 10.0),
                     resolution=0.0,
                     reliability='communicationFailure',
                     statusFlags=[0, 1, 0, 0],
