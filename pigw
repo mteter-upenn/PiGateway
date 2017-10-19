@@ -1,0 +1,30 @@
+#!/bin/sh
+
+FLAGFILE=/var/run/pigw-already-started
+
+case "$IFACE" in
+    lo)
+        # loopback interface does not count
+        # only run when some other interface comes up
+        exit 0
+        ;;
+    eth0)
+        ;;
+    *)
+        exit 0
+        ;;
+esac
+
+if [ -e $FLAGFILE ]; then
+    exit 0
+else
+    touch $FLAGFILE
+fi
+
+# BE SURE TO CHANGE DIRECTORIES IF NEEDED!!!!!
+#echo 'start python3 env'
+sudo -u fresep screen -dmS first-screen bash -c 'cd /home/fresep/bacpypes; exec bash'
+#sudo -u fresep screen -ls
+#echo 'start bacnet modbus script'
+sudo -u fresep screen -dmS bacnet-modbus bash -c 'python3 /home/fresep/PiGateway/PiGateway.py --ini /home/fresep/PiGateway/DeviceList/pibtest.ini --debug modbusbacnetclasses.UpdateObjectsFromModbus; exec bash'
+#sudo -u fresep screen -ls
