@@ -26,5 +26,6 @@ fi
 sudo -u fresep screen -dmS first-screen bash -c 'cd /home/fresep/bacpypes; exec bash'
 #sudo -u fresep screen -ls
 #echo 'start bacnet modbus script'
-sudo -u fresep screen -dmS bacnet-modbus bash -c 'python3 /home/fresep/PiGateway/PiGateway.py --ini /home/fresep/PiGateway/DeviceList/pibtest.ini --debug modbusbacnetclasses.UpdateObjectsFromModbus; exec bash'
+sudo -u fresep screen -dmS bacnet-modbus bash -c 'python3 /home/fresep/PiGateway/PiGateway.py --ini /home/fresep/PATH/TO/.ini --debug bacpypes.core.run; exec bash'
+#modbusbacnetclasses.UpdateObjectsFromModbus
 #sudo -u fresep screen -ls
