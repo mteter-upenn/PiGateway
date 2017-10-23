@@ -18,7 +18,8 @@ from bacpypes.consolelogging import ConfigArgumentParser
 
 from bacpypes.core import run
 
-# from bacpypes.primitivedata import BitString  # Real
+from bacpypes.primitivedata import Real
+from bacpypes.constructeddata import ArrayOf
 # from bacpypes.object import AnalogValueObject, Property, register_object_type
 # from bacpypes.errors import ExecutionError
 # from bacpypes.basetypes import StatusFlags
@@ -43,7 +44,21 @@ _log = ModuleLogger(globals())
 @bacpypes_debugging
 # ADDED ReadWritePropertyMultipleServices
 class ModbusSimpleApplication(BIPSimpleApplication, ReadWritePropertyMultipleServices, ChangeOfValueServices):
-    pass
+    def request(self, apdu, forwarded=False):
+        if _debug: ModbusSimpleApplication._debug("[%s]request %r", self.localAddress, apdu)
+        BIPSimpleApplication.request(self, apdu, forwarded=forwarded)
+
+    def indication(self, apdu, forwarded=False):
+        if _debug: ModbusSimpleApplication._debug("[%s]indication %r %r", self.localAddress, apdu, forwarded)
+        BIPSimpleApplication.indication(self, apdu, forwarded=forwarded)
+
+    def response(self, apdu, forwarded=False):
+        if _debug: ModbusSimpleApplication._debug("[%s]response %r", self.localAddress, apdu)
+        BIPSimpleApplication.response(self, apdu, forwarded=forwarded)
+
+    def confirmation(self, apdu, forwarded=False):
+        if _debug: ModbusSimpleApplication._debug("[%s]confirmation %r", self.localAddress, apdu)
+        BIPSimpleApplication.confirmation(self, apdu, forwarded=forwarded)
 
 
 #
@@ -193,7 +208,8 @@ def main():
                     numberOfRegisters=obj_num_regs,
                     registerFormat=obj_reg_format,
                     wordOrder=mb_dev_wo,
-                    modbusScaling=[obj_eq_m, obj_eq_b],
+                    # modbusScaling=[obj_eq_m, obj_eq_b],
+                    modbusScaling=ArrayOf(Real)([obj_eq_m, obj_eq_b]),
                     units=obj_units_id,
                     covIncrement=0.0,
                     updateInterval=int(mb_dev_poll_time / 10.0),

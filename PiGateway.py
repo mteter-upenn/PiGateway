@@ -22,8 +22,8 @@ from bacpypes.service.device import WhoIsIAmServices  # LocalDeviceObject,
 from bacpypes.service.object import ReadWritePropertyServices, ReadWritePropertyMultipleServices
 from bacpypes.service.cov import ChangeOfValueServices
 
-# from bacpypes.constructeddata import ArrayOf
-# from bacpypes.primitivedata import Real, Integer, CharacterString
+from bacpypes.constructeddata import ArrayOf
+from bacpypes.primitivedata import Real  # , Integer, CharacterString
 # from bacpypes.object import Property, register_object_type, AnalogInputObject, ReadableProperty  # , AnalogValueObject
 # from bacpypes.basetypes import StatusFlags
 
@@ -372,7 +372,8 @@ def main():
                             numberOfRegisters=obj_num_regs,
                             registerFormat=obj_reg_format,
                             wordOrder=mb_dev_wo,
-                            modbusScaling=[obj_eq_m, obj_eq_b],
+                            # modbusScaling=[obj_eq_m, obj_eq_b],
+                            modbusScaling=ArrayOf(Real)([obj_eq_m, obj_eq_b]),
                             units=obj_units_id,
                             covIncrement=0.0,
                             updateInterval=int(mb_dev_poll_time / 10.0),
