@@ -110,16 +110,6 @@ def main():
                                                             unq_ip_last_resp_dict)
     json_raw_str.close()
 
-    # "deviceName": "DRL small steam",
-    # "deviceInstance": 4000001,
-    # "deviceDescription": "DRL small steam meter- connected by NC valve to Towne through skirkanich",
-    # "deviceIP": "10.166.2.132",
-    # "modbusId": 10,
-    # "mapName": "KEP Steam",
-    # "mapRev": "a",
-    # "meterModelName": "KEP Steam",
-    # "modbusPort": 502,
-    # "holdingRegisters": {
     if good_inst:
         dev_name = map_dict['deviceName']
         dev_inst = map_dict['deviceInstance']
@@ -222,58 +212,6 @@ def main():
                 )
                 # _log.debug("    - ravo: %r", ravo)
                 app_dict[dev_inst].add_object(maio)
-
-    # # this_device = modbusbacnetclasses.ModbusLocalDevice(
-    # this_device = modbusbacnetclasses.ModbusLocalDevice(
-    #     objectName=object_name,
-    #     objectIdentifier=('device', object_id),
-    #     maxApduLengthAccepted=max_apdu_len,
-    #     segmentationSupported=segmentation_support,
-    #     vendorIdentifier=vendor_id,
-    #     deviceIp='10.166.2.132',
-    #     modbusId=10,
-    #     modbusMapName='KEP Steam',
-    #     modbusMapRev='a',
-    #     deviceModelName='KEP Steam',
-    #     modbusPort=502,
-    #     # wordOrder='lsw',
-    # )
-    #
-    # # make a sample application
-    # this_application = BIPSimpleApplication(this_device, ip_address)
-    #
-    # # get the services supported
-    # services_supported = this_application.get_services_supported()
-    # if _debug: _log.debug("    - services_supported: %r", services_supported)
-    #
-    # # let the device object know
-    # this_device.protocolServicesSupported = services_supported.value
-
-    # # make some random input objects
-    # for i in range(1, 10+1):
-    #     # ravo = RandomAnalogValueObject(
-    #     #     objectIdentifier=('analogValue', i),
-    #     #     objectName='Random-%d' % (i,),
-    #     #     )
-    #
-    #     # ravo = modbusbacnetclasses.ModbusAnalogInputObject(
-    #     ravo = modbusbacnetclasses.ModbusAnalogInputObject(
-    #         parent_device_inst=object_id,
-    #         register_reader=None,
-    #         objectIdentifier=('analogInput', i),
-    #         objectName='ModbusRandom-%d' % (i,),
-    #         modbusFunction=3,
-    #         registerStart=i,
-    #         numberOfRegisters=2,
-    #         registerFormat='float',
-    #         wordOrder='lsw',
-    #         registerScaling=[0, 1, 0, 1],
-    #     )
-    #     _log.debug("    - ravo: %r", ravo)
-    #     this_application.add_object(ravo)
-    #
-    # # make sure they are all there
-    # _log.debug("    - object list: %r", this_device.objectList)
 
     print('init modbus bank')
     obj_val_bank = modbusregisters.ModbusFormatAndStorage(mb_to_bank_queue, bank_to_bcnt_queue, object_val_dict)

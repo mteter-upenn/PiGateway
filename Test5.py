@@ -262,11 +262,11 @@ class VLANRouter:
         #from WhoIsIAmForeign ForeignApplication
         # create a generic BIP stack, bound to the Annex J server
         # on the UDP multiplexer
-        self.bip = BIPForeign(Address('10.166.1.72'), 30)
+        self.bip = BIPForeign(Address('BBMD_ADDR'), 30)
         self.annexj = AnnexJCodec()
         self.mux = UDPMultiplexer(local_address, noBroadcast=True)
         #end
-        # self.bip.add_peer(Address('10.166.1.72'))
+        # self.bip.add_peer(Address(BBMD_ADDR))
         #ADDED
 
         # bind the bottom layers
