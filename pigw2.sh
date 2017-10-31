@@ -2,7 +2,12 @@
 
 function check_online
 {
-    netcat -z -w 5 10.166.19.3 53 && echo 1 || echo 0
+# netcat
+#    -z: zero-I/O mode used for scanning
+#    -w 5: timeout in seconds
+#    DNS_IP: ip of DNS server (8.8.8.8 is google, use local dns server for gateways on lans)
+#    DNS_PORT: should be 53
+    netcat -z -w 5 DNS_IP 53 && echo 1 || echo 0
 #    netcat -z -w 5 8.8.8.8 53 && echo 1 || echo 0
 }
 
