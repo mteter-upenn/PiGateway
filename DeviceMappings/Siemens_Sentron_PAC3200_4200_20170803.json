@@ -1,0 +1,510 @@
+{
+  "deviceName":"default name",
+  "deviceInstance":0,
+  "deviceDescription":"default description",
+  "deviceIP":"0.0.0.0",
+  "modbusId":1,
+  "mapName":"Siemens Sentron PAC3200, 4200",
+  "mapRev":"20170803",
+  "meterModelName":"default model",
+  "modbusPort":502,
+  "holdingRegisters": {
+    "pollingTime":30000,
+    "requestTimeout":1000,
+    "groupConsecutive":"yes",
+    "groupGaps":"yes",
+    "wordOrder":"msw",
+    "registers": [
+      {
+        "objectName":"current_a",
+        "objectDescription":"Current for phase A",
+        "objectInstance":101,
+        "start":14,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"current_b",
+        "objectDescription":"Current for phase B",
+        "objectInstance":102,
+        "start":16,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"current_c",
+        "objectDescription":"Current for phase C",
+        "objectInstance":103,
+        "start":18,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"current_average",
+        "objectDescription":"Average current",
+        "objectInstance":104,
+        "start":62,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"current_neutral",
+        "objectDescription":"Neutral current",
+        "objectInstance":106,
+        "start":296,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":3,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"voltage_LN_a",
+        "objectDescription":"Line-neutral voltage for phase A",
+        "objectInstance":108,
+        "start":2,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"voltage_LN_b",
+        "objectDescription":"Line-neutral voltage for phase B",
+        "objectInstance":109,
+        "start":4,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"voltage_LN_c",
+        "objectDescription":"Line-neutral voltage for phase C",
+        "objectInstance":110,
+        "start":6,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"voltage_LN_average",
+        "objectDescription":"Line-neutral voltage",
+        "objectInstance":111,
+        "start":58,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"voltage_LL_a-b",
+        "objectDescription":"Line-line voltage for phases A-B",
+        "objectInstance":112,
+        "start":8,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"voltage_LL_b-c",
+        "objectDescription":"Line-line voltage for phases B-C",
+        "objectInstance":113,
+        "start":10,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"voltage_LL_c-a",
+        "objectDescription":"Line-line voltage for phases C-A",
+        "objectInstance":114,
+        "start":12,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"voltage_LL_average",
+        "objectDescription":"Line-line voltage",
+        "objectInstance":115,
+        "start":60,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":5,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"power_factor_a_apparent",
+        "objectDescription":"Apparent power factor for phase A",
+        "objectInstance":121,
+        "start":38,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":15,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"power_factor_b_apparent",
+        "objectDescription":"Apparent power factor for phase B",
+        "objectInstance":122,
+        "start":40,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":15,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"power_factor_c_apparent",
+        "objectDescription":"Apparent power factor for phase C",
+        "objectInstance":123,
+        "start":42,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":15,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"power_factor_apparent",
+        "objectDescription":"Apparent power factor across all phases",
+        "objectInstance":124,
+        "start":70,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":15,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"frequency",
+        "objectDescription":"Frequency",
+        "objectInstance":125,
+        "start":56,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":27,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"real_power_a",
+        "objectDescription":"Real power for phase A",
+        "objectInstance":126,
+        "start":26,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":48,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"real_power_b",
+        "objectDescription":"Real power for phase B",
+        "objectInstance":127,
+        "start":28,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":48,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"real_power_c",
+        "objectDescription":"Real power for phase C",
+        "objectInstance":128,
+        "start":30,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":48,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"real_power_total",
+        "objectDescription":"Total real power",
+        "objectInstance":129,
+        "start":66,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":48,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"reactive_power_a",
+        "objectDescription":"Reactive power for phase A",
+        "objectInstance":130,
+        "start":32,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":12,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"reactive_power_b",
+        "objectDescription":"Reactive power for phase B",
+        "objectInstance":131,
+        "start":34,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":12,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"reactive_power_c",
+        "objectDescription":"Reactive power for phase C",
+        "objectInstance":132,
+        "start":36,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":12,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"reactive_power_total",
+        "objectDescription":"Total reactive power",
+        "objectInstance":133,
+        "start":68,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":12,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"apparent_power_a",
+        "objectDescription":"Apparent power for phase A",
+        "objectInstance":134,
+        "start":20,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":9,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"apparent_power_b",
+        "objectDescription":"Apparent power for phase B",
+        "objectInstance":135,
+        "start":22,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":9,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"apparent_power_c",
+        "objectDescription":"Apparent power for phase C",
+        "objectInstance":136,
+        "start":24,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":9,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"apparent_power_total",
+        "objectDescription":"Total apparent power",
+        "objectInstance":137,
+        "start":64,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":9,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"real_energy_delivered",
+        "objectDescription":"Real energy into meter",
+        "objectInstance":138,
+        "start":802,
+        "format":"double",
+        "poll":"yes",
+        "unitsId":19,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"real_energy_received",
+        "objectDescription":"Real energy out of meter",
+        "objectInstance":139,
+        "start":810,
+        "format":"double",
+        "poll":"yes",
+        "unitsId":19,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"reactive_energy_delivered",
+        "objectDescription":"Reactive energy into meter, leading",
+        "objectInstance":142,
+        "start":818,
+        "format":"double",
+        "poll":"yes",
+        "unitsId":243,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"reactive_energy_received",
+        "objectDescription":"Reactive energy out of meter, lagging",
+        "objectInstance":143,
+        "start":826,
+        "format":"double",
+        "poll":"yes",
+        "unitsId":243,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"apparent_energy_total",
+        "objectDescription":"Total apparent energy imported + exported",
+        "objectInstance":148,
+        "start":834,
+        "format":"double",
+        "poll":"yes",
+        "unitsId":240,
+        "pointScale":[0,1000,0,1]
+      },
+      {
+        "objectName":"phase_angle_voltage_ab",
+        "objectDescription":"Phase angle of voltage for phase a-b",
+        "objectInstance":157,
+        "start":256,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":14,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phase_angle_voltage_bc",
+        "objectDescription":"Phase angle of voltage for phase b-c",
+        "objectInstance":158,
+        "start":258,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":14,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"phase_angle_voltage_ca",
+        "objectDescription":"Phase angle of voltage for phase c-a",
+        "objectInstance":159,
+        "start":260,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":14,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"thd_current_a",
+        "objectDescription":"Total harmonic distortion for current  on phase a",
+        "objectInstance":222,
+        "start":268,
+        "format":"float",
+        "poll":"no",
+        "unitsId":98,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"thd_current_b",
+        "objectDescription":"Total harmonic distortion for current  on phase b",
+        "objectInstance":223,
+        "start":270,
+        "format":"float",
+        "poll":"no",
+        "unitsId":98,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"thd_current_c",
+        "objectDescription":"Total harmonic distortion for current  on phase c",
+        "objectInstance":224,
+        "start":272,
+        "format":"float",
+        "poll":"no",
+        "unitsId":98,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"thd_voltage_a",
+        "objectDescription":"Total harmonic distortion for voltage on phase a",
+        "objectInstance":226,
+        "start":262,
+        "format":"float",
+        "poll":"no",
+        "unitsId":98,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"thd_voltage_b",
+        "objectDescription":"Total harmonic distortion for voltage on phase b",
+        "objectInstance":227,
+        "start":264,
+        "format":"float",
+        "poll":"no",
+        "unitsId":98,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"thd_voltage_c",
+        "objectDescription":"Total harmonic distortion for voltage on phase c",
+        "objectInstance":228,
+        "start":266,
+        "format":"float",
+        "poll":"no",
+        "unitsId":98,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"thd_voltage_ab",
+        "objectDescription":"Total harmonic distortion for voltage on phase a-b",
+        "objectInstance":229,
+        "start":44,
+        "format":"float",
+        "poll":"no",
+        "unitsId":98,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"thd_voltage_bc",
+        "objectDescription":"Total harmonic distortion for voltage on phase b-c",
+        "objectInstance":230,
+        "start":46,
+        "format":"float",
+        "poll":"no",
+        "unitsId":98,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"thd_voltage_ca",
+        "objectDescription":"Total harmonic distortion for voltage on phase c-a",
+        "objectInstance":231,
+        "start":48,
+        "format":"float",
+        "poll":"no",
+        "unitsId":98,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"unbalance_current",
+        "objectDescription":"Maximum unbalance of current phases",
+        "objectInstance":235,
+        "start":294,
+        "format":"float",
+        "poll":"no",
+        "unitsId":98,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"unbalance_voltage",
+        "objectDescription":"Voltage unbalance",
+        "objectInstance":244,
+        "start":292,
+        "format":"float",
+        "poll":"no",
+        "unitsId":98,
+        "pointScale":[0,1,0,1]
+      }
+    ]
+  }
+}
