@@ -1,0 +1,270 @@
+{
+  "deviceName":"default name",
+  "deviceInstance":0,
+  "deviceDescription":"default description",
+  "deviceIP":"0.0.0.0",
+  "modbusId":1,
+  "mapName":"KEP Chilled Water",
+  "mapRev":"20170803",
+  "meterModelName":"default model",
+  "modbusPort":502,
+  "holdingRegisters": {
+    "pollingTime":30000,
+    "requestTimeout":1000,
+    "groupConsecutive":"yes",
+    "groupGaps":"yes",
+    "wordOrder":"lsw",
+    "registers": [
+      {
+        "objectName":"heat_flow_chw",
+        "objectDescription":"Instantaneous heat flow of chilled water",
+        "objectInstance":5,
+        "start":1,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":52,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"mass_flow_chw",
+        "objectDescription":"Instantaneous mass flow of chilled water",
+        "objectInstance":6,
+        "start":3,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":45,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"vol_flow_chw",
+        "objectDescription":"Instantaneous volumetric flow of chilled water",
+        "objectInstance":8,
+        "start":7,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":89,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"supply_temp",
+        "objectDescription":"Supply temperature",
+        "objectInstance":9,
+        "start":9,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":64,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"return_temp",
+        "objectDescription":"Return temperature",
+        "objectInstance":10,
+        "start":11,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":64,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"delta_temp",
+        "objectDescription":"Return minus supply temperature",
+        "objectInstance":11,
+        "start":13,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":64,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"density_chw",
+        "objectDescription":"Density of chilled water in lbs/gal",
+        "objectInstance":15,
+        "start":19,
+        "format":"float",
+        "poll":"no",
+        "unitsId":95,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"heat_total_chw",
+        "objectDescription":"Heat total of chilled water",
+        "objectInstance":21,
+        "start":23,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":22,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"mass_total_chw",
+        "objectDescription":"Mass total of chilled water",
+        "objectInstance":22,
+        "start":25,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":40,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"vol_total_chw",
+        "objectDescription":"Volumetric total of chilled water",
+        "objectInstance":24,
+        "start":29,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":83,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"heat_grand_total_chw",
+        "objectDescription":"Head grand total of chilled water",
+        "objectInstance":29,
+        "start":31,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":22,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"mass_grand_total_chw",
+        "objectDescription":"Mass grand total of chilled water",
+        "objectInstance":30,
+        "start":33,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":40,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"vol_grand_total_chw",
+        "objectDescription":"Volumetric grand total of chilled water",
+        "objectInstance":32,
+        "start":37,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":83,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"alarm_point_1",
+        "objectDescription":"Alarm 1",
+        "objectInstance":33,
+        "start":39,
+        "format":"float",
+        "poll":"no",
+        "unitsId":95,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"alarm_point_2",
+        "objectDescription":"Alarm 2",
+        "objectInstance":34,
+        "start":41,
+        "format":"float",
+        "poll":"no",
+        "unitsId":95,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"alarm_point_3",
+        "objectDescription":"Alarm 3",
+        "objectInstance":35,
+        "start":43,
+        "format":"float",
+        "poll":"no",
+        "unitsId":95,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"year_kep",
+        "objectDescription":"Year",
+        "objectInstance":36,
+        "start":45,
+        "format":"uint16",
+        "poll":"no",
+        "unitsId":67,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"month_kep",
+        "objectDescription":"Month",
+        "objectInstance":37,
+        "start":46,
+        "format":"uint16",
+        "poll":"no",
+        "unitsId":68,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"day_kep",
+        "objectDescription":"Day",
+        "objectInstance":38,
+        "start":47,
+        "format":"uint16",
+        "poll":"no",
+        "unitsId":70,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"hour_kep",
+        "objectDescription":"Hour",
+        "objectInstance":39,
+        "start":48,
+        "format":"uint16",
+        "poll":"no",
+        "unitsId":71,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"minute_kep",
+        "objectDescription":"Minute",
+        "objectInstance":40,
+        "start":49,
+        "format":"uint16",
+        "poll":"no",
+        "unitsId":72,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"second_kep",
+        "objectDescription":"Second",
+        "objectInstance":41,
+        "start":50,
+        "format":"uint16",
+        "poll":"no",
+        "unitsId":73,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"peak_demand_chw",
+        "objectDescription":"Peak demand of chilled water",
+        "objectInstance":44,
+        "start":51,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":52,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"demand_last_hour_chw",
+        "objectDescription":"Average demand over last hour of chilled water",
+        "objectInstance":45,
+        "start":53,
+        "format":"float",
+        "poll":"yes",
+        "unitsId":52,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"accum_power_loss",
+        "objectDescription":"Accumulated power loss, hours in first register, minutes in second",
+        "objectInstance":49,
+        "start":61,
+        "format":"uint32",
+        "poll":"no",
+        "unitsId":95,
+        "pointScale":[0,1,0,1]
+      }
+    ]
+  }
+}
