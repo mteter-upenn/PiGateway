@@ -463,8 +463,8 @@ class ModbusPollThread(threading.Thread):
             # print('func: ', self.mb_func)
             # print('start:', self.register)
             # print('regs: ', self.num_regs)
-            otpt = mb_poll(self.ip, self.mb_id, self.register, self.num_regs, func=self.mb_func, mb_to=self.timeout,
-                           port=self.port, t='uint16')
+            otpt = mb_poll(self.ip, self.mb_id, self.register, self.num_regs, mb_func=self.mb_func,
+                           mb_timeout=self.timeout, port=self.port, data_type='uint16')
             tx_resp = {'type': 'modbus', 'bcnt_inst': self.bcnt_instance, 'mb_func': self.mb_func,
                        'mb_reg': self.register, 'mb_num_regs': self.num_regs, 'mb_otpt': otpt,
                        'mb_resp_time': time.time(), 'obj_list': self.object_list}
