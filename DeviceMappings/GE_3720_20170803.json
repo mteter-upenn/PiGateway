@@ -1,7 +1,7 @@
 {
   "deviceName":"default name",
   "deviceInstance":0,
-  "deviceDescription":"default description",
+  "deviceDescription":"UTILITY; Feeds: BUILDING_EQUATION; From: ELECTRIC_LINES; Serno: SERIAL_NUMBER; IP: METER_IP; MBid: MODBUS_ID",
   "deviceIP":"0.0.0.0",
   "modbusId":1,
   "mapName":"GE 3720",
