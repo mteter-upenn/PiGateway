@@ -87,6 +87,8 @@ def add_meter_instance_to_dicts(meter_map_dict, mb_to_bank_queue, object_bank, m
         return False
     clstr = 0
     mb_ip = meter_map_dict['deviceIP']
+    if mb_ip == '0.0.0.0':
+        mb_ip = '/dev/serial0'
     mb_id = meter_map_dict['modbusId']
     mb_port = meter_map_dict['modbusPort']
     val_types = {'holdingRegisters': 3, 'inputRegisters': 4, 'coilBits': 1, 'inputBits': 2}
@@ -464,7 +466,7 @@ class ModbusPollThread(threading.Thread):
             # print('start:', self.register)
             # print('regs: ', self.num_regs)
             otpt = mb_poll(self.ip, self.mb_id, self.register, self.num_regs, mb_func=self.mb_func,
-                           mb_timeout=self.timeout, port=self.port, data_type='uint16')
+                           mb_timeout=self.timeout, port=self.port, data_type='uint16')  # , pi_pin_cntl=15)
             tx_resp = {'type': 'modbus', 'bcnt_inst': self.bcnt_instance, 'mb_func': self.mb_func,
                        'mb_reg': self.register, 'mb_num_regs': self.num_regs, 'mb_otpt': otpt,
                        'mb_resp_time': time.time(), 'obj_list': self.object_list}
