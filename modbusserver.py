@@ -64,7 +64,7 @@ class ThreadedModbusRequestHandler(socketserver.BaseRequestHandler):
                 len_return = len(raw_byte_return) + 3
                 len_rtn_hi = (len_return >> 8) & 0xff
                 len_rtn_lo = len_return & 0xff
-                response_list = transaction_id.extend([0, 0, len_rtn_hi, len_rtn_lo, slave_id, mb_func, len_return - 3])
+                response_list = transaction_id + [0, 0, len_rtn_hi, len_rtn_lo, slave_id, mb_func, len_return - 3]
                 response_list.extend(raw_byte_return)
                 response = bytes(response_list)
 
