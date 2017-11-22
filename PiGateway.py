@@ -32,6 +32,9 @@ from bacpypes.vlan import Network, Node
 
 import modbusregisters
 import modbusbacnetclasses
+import socketserver
+import threading
+import modbusserver
 import queue
 
 
@@ -479,10 +482,26 @@ def main():
     obj_val_bank.start()
     mb_req_launcher.start()
 
+    # set up modbus server
+    # print(args.ini.localip)
+    # print(str(args.ini.localip))
+    # print(str(args.ini.localip).split('/')[0])
+    # socketserver.TCPServer.allow_reuse_address = True
+    modbus_server = modbusserver.ThreadedTCPServer((str(args.ini.localip).split('/')[0], 502),
+                                                   modbusserver.ThreadedModbusRequestHandler)
+    # ip, port = modbus_server.server_address
+
+    server_thread = threading.Thread(target=modbus_server.serve_forever)
+    server_thread.daemon = True
+    server_thread.start()
+
     _log.debug("running")
     print('bacnet start')
     run()
 
+    modbus_server.shutdown()
+    modbus_server.server_close()
+    print('PiGateway finish')
     _log.debug("fini")
 
 
