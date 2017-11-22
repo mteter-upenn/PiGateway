@@ -42,8 +42,30 @@ class ThreadedModbusRequestHandler(socketserver.BaseRequestHandler):
         mb_error, transaction_id, slave_id, mb_func, mb_register, mb_num_regs = parse_modbus_request(data)
         if mb_error != 0:
             response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, slave_id, mb_func + 128, mb_error[1]])
+        elif mb_register > 39999 and mb_register < 50000:
+            # search for device info, then use that to make direct query of modbus device, modifying for datatype
+            mb_error = mb_poll.mb_err_dict[2]
+            response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, slave_id, mb_func + 128, mb_error[1]])
+        elif mb_register > 49999 and mb_register < 60000:
+            # search for device info and grab values direct from bacnet objects (limit to one?)
+            mb_error = mb_poll.mb_err_dict[2]
+            response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, slave_id, mb_func + 128, mb_error[1]])
         else:
-            pass
+            # assume serial for now!
+            raw_byte_return = mb_poll.mb_poll('/dev/serial0', slave_id, mb_register, mb_num_regs, data_type='uint16',
+                                              zero_based=True, mb_func=mb_func, b_raw_bytes=True)
+            if raw_byte_return[0] == 'Err':
+                mb_error = raw_byte_return
+                response = bytes(
+                    [transaction_id[0], transaction_id[1], 0, 0, 0, 3, slave_id, mb_func + 128, mb_error[1]])
+            else:
+                len_return = len(raw_byte_return) + 3
+                len_rtn_hi = (len_return >> 8) & 0xff
+                len_rtn_lo = len_return & 0xff
+                response_list = transaction_id.extend([0, 0, len_rtn_hi, len_rtn_lo, slave_id, mb_func, len_return - 3])
+                response_list.extend(raw_byte_return)
+                response = bytes(response_list)
+
         # response = bytes([0, 0, 0, 0, 0, 7, 1, 3, 4, 1, 2, 3, 4])
         self.request.sendall(response)
 
@@ -75,7 +97,7 @@ if __name__ == '__main__':
 
     print('server loop running in thread:', server_thread.name)
 
-    client(ip, port, [0, 0, 0, 0, 0, 6, 1, 3, 0, 0, 0, 2])
+    client(ip, port, [0, 0, 0, 0, 0, 6, 15, 3, 0, 0, 0, 10])
 
     modbus_server.shutdown()
     modbus_server.server_close()
