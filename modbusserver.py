@@ -88,7 +88,8 @@ def client(ip, port, message):
 
 
 if __name__ == '__main__':
-    HOST, PORT = 'localhost', 502
+    # HOST, PORT = 'localhost', 502
+    HOST, PORT = '130.91.139.94', 502
 
     modbus_server = ThreadedTCPServer((HOST, PORT), ThreadedModbusRequestHandler)
     ip, port = modbus_server.server_address
@@ -99,7 +100,13 @@ if __name__ == '__main__':
 
     print('server loop running in thread:', server_thread.name)
 
-    client(ip, port, [0, 0, 0, 0, 0, 6, 15, 3, 0, 0, 0, 20])
+    # client(ip, port, [0, 0, 0, 0, 0, 6, 15, 3, 0, 0, 0, 20])
+
+    try:
+        while True:
+            pass
+    except KeyboardInterrupt:
+        pass
 
     modbus_server.shutdown()
     modbus_server.server_close()
