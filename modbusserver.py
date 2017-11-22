@@ -18,10 +18,12 @@ def parse_modbus_request(message):
         exp_tcp_length = message[5]
         slave_id = message[6]
         mb_func = message[7]
-        mb_register = (message[8] << 8) & message[9]
-        mb_num_regs = (message[10] << 8) & message[11]
+        mb_register = (message[8] << 8) | message[9]
+        mb_num_regs = (message[10] << 8) | message[11]
+        # print('tcp_length: ', exp_tcp_length, ', slave_id: ', slave_id, ', mb_func: ', mb_func, ', mb_register: ',
+        #       mb_register, ', mb_num_regs: ', mb_num_regs, sep='')
     except IndexError:
-        pass
+        mb_error = mb_poll.mb_err_dict[108]
 
     tcp_length = len(message)
     if tcp_length < 6:
@@ -97,7 +99,7 @@ if __name__ == '__main__':
 
     print('server loop running in thread:', server_thread.name)
 
-    client(ip, port, [0, 0, 0, 0, 0, 6, 15, 3, 0, 0, 0, 10])
+    client(ip, port, [0, 0, 0, 0, 0, 6, 15, 3, 0, 0, 0, 20])
 
     modbus_server.shutdown()
     modbus_server.server_close()
