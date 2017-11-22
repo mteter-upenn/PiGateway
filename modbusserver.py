@@ -91,8 +91,8 @@ if __name__ == '__main__':
     # HOST, PORT = 'localhost', 502
     HOST, PORT = '130.91.139.94', 502
 
+    socketserver.TCPServer.allow_reuse_address = True
     modbus_server = ThreadedTCPServer((HOST, PORT), ThreadedModbusRequestHandler)
-    modbus_server.allow_reuse_address = True
     ip, port = modbus_server.server_address
 
     server_thread = threading.Thread(target=modbus_server.serve_forever)
