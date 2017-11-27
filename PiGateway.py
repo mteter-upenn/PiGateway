@@ -33,7 +33,7 @@ from bacpypes.vlan import Network, Node
 import modbusregisters
 import modbusbacnetclasses
 import socketserver
-import threading
+from threading import Thread
 import modbusserver
 import queue
 
@@ -491,7 +491,7 @@ def main():
                                                    modbusserver.ThreadedModbusRequestHandler)
     # ip, port = modbus_server.server_address
 
-    server_thread = threading.Thread(target=modbus_server.serve_forever)
+    server_thread = Thread(target=modbus_server.serve_forever)
     server_thread.daemon = True
     server_thread.start()
 

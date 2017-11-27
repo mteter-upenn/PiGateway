@@ -1,6 +1,7 @@
 import threading
 import socketserver
 import socket
+import multiprocessing
 import mbpy.mb_poll as mb_poll
 
 
@@ -37,9 +38,12 @@ def parse_modbus_request(message):
 class ThreadedModbusRequestHandler(socketserver.BaseRequestHandler):
     def handle(self):
         cur_thread = threading.current_thread()
-        print('in server.handle, thread:', cur_thread)
+        cur_process = multiprocessing.current_process()
+        print('in server.handle, process: ', cur_process, ', thread: ', cur_thread, sep='')
 
         data = self.request.recv(1024)
+
+        print('\t', data)
 
         mb_error, transaction_id, slave_id, mb_func, mb_register, mb_num_regs = parse_modbus_request(data)
         if mb_error != 0:
@@ -69,10 +73,15 @@ class ThreadedModbusRequestHandler(socketserver.BaseRequestHandler):
                 response = bytes(response_list)
 
         # response = bytes([0, 0, 0, 0, 0, 7, 1, 3, 4, 1, 2, 3, 4])
+        print('\t', cur_process, cur_thread, response)
         self.request.sendall(response)
 
 
 class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
+    pass
+
+
+class ForkedTCPServer(socketserver.ForkingMixIn, socketserver.TCPServer):
     pass
 
 
@@ -88,18 +97,43 @@ def client(ip, port, message):
 
 
 if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('ip', type=str, help='ip of local machine')
+    parser.add_argument('port', type=int, help='socket port')
+    parser.add_argument('-f', '--fork', action='store_true', help='Create different process instead of different '
+                                                                  'thread.')
+    args = parser.parse_args()
+
     # HOST, PORT = 'localhost', 502
-    HOST, PORT = '130.91.139.94', 502
+    # HOST, PORT = '130.91.139.94', 502
+    HOST = args.ip
+    PORT = args.port
 
     socketserver.TCPServer.allow_reuse_address = True
-    modbus_server = ThreadedTCPServer((HOST, PORT), ThreadedModbusRequestHandler)
-    ip, port = modbus_server.server_address
 
-    server_thread = threading.Thread(target=modbus_server.serve_forever)
-    server_thread.daemon = True
-    server_thread.start()
+    if not args.fork:
+        modbus_server = ThreadedTCPServer((HOST, PORT), ThreadedModbusRequestHandler)
+        ip, port = modbus_server.server_address
 
-    print('server loop running in thread:', server_thread.name)
+        server_thread = threading.Thread(target=modbus_server.serve_forever)
+        server_thread.daemon = True
+        server_thread.start()
+
+        print('server loop running in thread:', server_thread.name)
+    else:
+        modbus_fork_server = ForkedTCPServer((HOST, PORT), ThreadedModbusRequestHandler)
+        ip, port = modbus_fork_server.server_address
+
+        server_fork = multiprocessing.Process(target=modbus_fork_server.serve_forever)
+        server_fork.daemon = True
+        server_fork.start()
+        # server_fork.join(timeout=1)
+
+        print('server loop running in process:', server_fork.name)
+
 
     # client(ip, port, [0, 0, 0, 0, 0, 6, 15, 3, 0, 0, 0, 20])
 
@@ -109,5 +143,10 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         pass
 
-    modbus_server.shutdown()
-    modbus_server.server_close()
+    if not args.fork:
+        modbus_server.shutdown()
+        modbus_server.server_close()
+    else:
+        # modbus_fork_server.shutdown()
+        # modbus_fork_server.server_close()
+        modbus_fork_server.socket.close()
