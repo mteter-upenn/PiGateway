@@ -59,7 +59,7 @@ class ThreadedModbusRequestHandler(socketserver.BaseRequestHandler):
         else:
             # assume serial for now!
             raw_byte_return = mb_poll.mb_poll('/dev/serial0', slave_id, mb_register, mb_num_regs, data_type='uint16',
-                                              zero_based=True, mb_func=mb_func, b_raw_bytes=True)
+                                              zero_based=True, mb_func=mb_func, b_raw_bytes=True, mb_timeout=1000)
             if raw_byte_return[0] == 'Err':
                 mb_error = raw_byte_return
                 response = bytes(
