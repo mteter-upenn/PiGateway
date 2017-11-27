@@ -33,7 +33,8 @@ from bacpypes.vlan import Network, Node
 import modbusregisters
 import modbusbacnetclasses
 import socketserver
-from threading import Thread
+# from threading import Thread
+from multiprocessing import Process
 import modbusserver
 import queue
 
@@ -486,21 +487,29 @@ def main():
     # print(args.ini.localip)
     # print(str(args.ini.localip))
     # print(str(args.ini.localip).split('/')[0])
-    # socketserver.TCPServer.allow_reuse_address = True
-    modbus_server = modbusserver.ThreadedTCPServer((str(args.ini.localip).split('/')[0], 502),
-                                                   modbusserver.ThreadedModbusRequestHandler)
+    socketserver.TCPServer.allow_reuse_address = True
+    # modbus_server = modbusserver.ThreadedTCPServer((str(args.ini.localip).split('/')[0], 502),
+    #                                                modbusserver.ThreadedModbusRequestHandler)
     # ip, port = modbus_server.server_address
 
-    server_thread = Thread(target=modbus_server.serve_forever)
-    server_thread.daemon = True
-    server_thread.start()
+    # server_thread = Thread(target=modbus_server.serve_forever)
+    # server_thread.daemon = True
+    # server_thread.start()
+
+    modbus_fork_server = modbusserver.ThreadedTCPServer((str(args.ini.localip).split('/')[0], 502),
+                                                        modbusserver.ThreadedModbusRequestHandler)
+
+    mb_server_fork = Process(target=modbus_fork_server.serve_forever)
+    mb_server_fork.daemon = True
+    mb_server_fork.start()
 
     _log.debug("running")
     print('bacnet start')
     run()
 
-    modbus_server.shutdown()
-    modbus_server.server_close()
+    # modbus_server.shutdown()
+    # modbus_server.server_close()
+    modbus_fork_server.socket.close()
     print('PiGateway finish')
     _log.debug("fini")
 
