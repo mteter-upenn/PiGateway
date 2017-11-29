@@ -487,8 +487,7 @@ def main():
     socketserver.TCPServer.allow_reuse_address = True
 
     ModbusRequestHandler = modbusserver.make_modbus_request_handler(mb_timeout=1000)
-    modbus_fork_server = modbusserver.ForkedTCPServer((str(args.ini.localip).split('/')[0], 502),
-                                                        modbusserver.ModbusRequestHandler)
+    modbus_fork_server = modbusserver.ForkedTCPServer((str(args.ini.localip).split('/')[0], 502), ModbusRequestHandler)
 
     mb_server_fork = Process(target=modbus_fork_server.serve_forever)
     mb_server_fork.daemon = True
