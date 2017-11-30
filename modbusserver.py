@@ -41,10 +41,10 @@ def parse_modbus_request(message):
 
 def make_modbus_request_handler(mb_timeout=1000):
     # @bacpypes_debugging
-    class KlassModbusRequestHandler(socketserver.BaseRequestHandler, object):
+    class KlassModbusRequestHandler(socketserver.BaseRequestHandler):  # , object):
         def __init__(self, *args, **kwargs):
-            super(KlassModbusRequestHandler, self).__init__(*args, **kwargs)
             self.mb_timeout = mb_timeout
+            super(KlassModbusRequestHandler, self).__init__(*args, **kwargs)
 
         def handle(self):
             # cur_process = multiprocessing.current_process()
