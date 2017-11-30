@@ -53,6 +53,6 @@ touch $FLAGFILE
 sudo -u fresep screen -dmS first-screen bash -c 'cd /home/fresep/bacpypes; exec bash'
 #sudo -u fresep screen -ls
 #echo 'start bacnet modbus script'
-sudo -u fresep screen -dmS bacnet-modbus bash -c 'sudo -u fresep python3 /home/fresep/PiGateway/PiGateway.py --ini /home/fresep/PATH/TO/.ini --debug bacpypes.core.run; exec bash'
+sudo -u fresep screen -dmS bacnet-modbus bash -c 'sudo /home/fresep/PiGateway/PiGateway.py --ini /home/fresep/PATH/TO/.ini --debug bacpypes.core.run; exec bash'
 #modbusbacnetclasses.UpdateObjectsFromModbus
 #sudo -u fresep screen -ls
