@@ -12,7 +12,8 @@ from bacpypes.task import RecurringTask
 
 # from bacpypes.errors import ExecutionError
 
-from bacpypes.basetypes import PropertyIdentifier, Reliability, EngineeringUnits, StatusFlags, EventState, EventTransitionBits
+from bacpypes.basetypes import PropertyIdentifier, Reliability, EngineeringUnits, StatusFlags, EventState, \
+    EventTransitionBits
 # LimitEnable, EventTransitionBits, NotifyType, TimeStamp, ObjectPropertyReference
 
 _debug = 0

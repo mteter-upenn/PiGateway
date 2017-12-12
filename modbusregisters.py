@@ -1,11 +1,10 @@
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
 from queue import Empty  # , Full
 import threading
-from mbpy.mb_poll import mb_poll
+from mbpy.mb_poll import modbus_poller
 import time
 from struct import pack, unpack
 # from pprint import pprint
-
 _debug = 0
 _log = ModuleLogger(globals())
 # _debug_modbus_registers = False
@@ -458,15 +457,15 @@ class ModbusPollThread(threading.Thread):
             self.currently_running = True
             time.sleep(delay)
 
-            if _debug: ModbusPollThread._debug('making modbus request for %s %s at %s', self.ip, self.mb_id,
-                                               time.time())
+            if _debug:
+                ModbusPollThread._debug('making modbus request for %s %s at %s', self.ip, self.mb_id, time.time())
             # print('ip:   ', self.ip)
             # print('id:   ', self.mb_id)
             # print('func: ', self.mb_func)
             # print('start:', self.register)
             # print('regs: ', self.num_regs)
-            otpt = mb_poll(self.ip, self.mb_id, self.register, self.num_regs, mb_func=self.mb_func,
-                           mb_timeout=self.timeout, port=self.port, data_type='uint16')  # , pi_pin_cntl=15)
+            otpt = modbus_poller(self.ip, self.mb_id, self.register, self.num_regs, mb_func=self.mb_func,
+                                 mb_timeout=self.timeout, port=self.port, data_type='uint16')  # , pi_pin_cntl=15)
             tx_resp = {'type': 'modbus', 'bcnt_inst': self.bcnt_instance, 'mb_func': self.mb_func,
                        'mb_reg': self.register, 'mb_num_regs': self.num_regs, 'mb_otpt': otpt,
                        'mb_resp_time': time.time(), 'obj_list': self.object_list}

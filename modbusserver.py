@@ -28,13 +28,13 @@ def parse_modbus_request(message):
         # print('tcp_length: ', exp_tcp_length, ', slave_id: ', slave_id, ', mb_func: ', mb_func, ', mb_register: ',
         #       mb_register, ', mb_num_regs: ', mb_num_regs, sep='')
     except IndexError:
-        mb_error = mb_poll.mb_err_dict[108]
+        mb_error = mb_poll.MB_ERR_DICT[108]
 
     tcp_length = len(message)
     if tcp_length < 6:
-        mb_error = mb_poll.mb_err_dict[108]
+        mb_error = mb_poll.MB_ERR_DICT[108]
     elif exp_tcp_length != tcp_length - 6:
-        mb_error = mb_poll.mb_err_dict[109]
+        mb_error = mb_poll.MB_ERR_DICT[109]
 
     return mb_error, transaction_id, slave_id, mb_func, mb_register, mb_num_regs
 
@@ -59,19 +59,19 @@ def make_modbus_request_handler(mb_timeout=1000):
                                   mb_error[1]])
             elif 39999 < mb_register < 50000:
                 # search for device info, then use that to make direct query of modbus device, modifying for datatype
-                mb_error = mb_poll.mb_err_dict[2]
+                mb_error = mb_poll.MB_ERR_DICT[2]
                 response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, slave_id, mb_func + 128,
                                   mb_error[1]])
             elif 49999 < mb_register < 60000:
                 # search for device info and grab values direct from bacnet objects (limit to one?)
-                mb_error = mb_poll.mb_err_dict[2]
+                mb_error = mb_poll.MB_ERR_DICT[2]
                 response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, slave_id, mb_func + 128,
                                   mb_error[1]])
             else:
                 # assume serial for now!
-                raw_byte_return = mb_poll.mb_poll('/dev/serial0', slave_id, mb_register, mb_num_regs,
-                                                  data_type='uint16', zero_based=True, mb_func=mb_func,
-                                                  b_raw_bytes=True, mb_timeout=self.mb_timeout)
+                raw_byte_return = mb_poll.modbus_poller('/dev/serial0', slave_id, mb_register, mb_num_regs,
+                                                        data_type='uint16', zero_based=True, mb_func=mb_func,
+                                                        b_raw_bytes=True, mb_timeout=self.mb_timeout)
                 if raw_byte_return[0] == 'Err':
                     mb_error = raw_byte_return
                     response = bytes(
