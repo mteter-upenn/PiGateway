@@ -16,8 +16,8 @@ FLAGFILE=/var/run/pigw-already-started
 
 if [[ -e $FLAGFILE ]]; then
     exit 0
-#else
-#    touch $FLAGFILE
+else
+    touch $FLAGFILE
 fi
 
 # Initial check to see if we're online
@@ -42,15 +42,16 @@ done
 
 if (( $IS_ONLINE == 0 )); then
     # We never were able to get online. Kill script.
+    rm $FLAGFILE
     exit 1
 fi
 
 # Now we enter our normal code here. The above was just for online checking
-touch $FLAGFILE
+#touch $FLAGFILE
 
 # BE SURE TO CHANGE DIRECTORIES IF NEEDED!!!!!
 #echo 'start python3 env'
-sudo -u fresep screen -dmS first-screen bash -c 'cd /home/fresep/bacpypes; exec bash'
+sudo -u fresep screen -dmS first-screen bash -c 'cd /home/fresep/pckt_caps; exec bash'
 #sudo -u fresep screen -ls
 #echo 'start bacnet modbus script'
 sudo -u fresep screen -dmS bacnet-modbus bash -c 'sudo /home/fresep/PiGateway/PiGateway.py --ini /home/fresep/PATH/TO/.ini --debug bacpypes.core.run; cd /home/fresep/PiGateway; exec bash'
