@@ -202,6 +202,7 @@ def main():
     vlan_network = int(args.ini.vlannetwork)
     foreign_address = Address(args.ini.bbmdip)
     mb_timeout = int(args.ini.modbustimeout)
+    mbtcp_timeout = int(args.ini.mbtcpservertimeout)
     max_apdu_len = 1024
     segmentation_support = 'noSegmentation'
     vendor_id = 15
@@ -486,7 +487,7 @@ def main():
     # set up modbus server
     socketserver.TCPServer.allow_reuse_address = True
 
-    ModbusRequestHandler = modbusserver.make_modbus_request_handler(mb_timeout=1000)
+    ModbusRequestHandler = modbusserver.make_modbus_request_handler(mb_timeout=mb_timeout, tcp_timeout=mbtcp_timeout)
     modbus_fork_server = modbusserver.ForkedTCPServer((str(args.ini.localip).split('/')[0], 502), ModbusRequestHandler)
 
     mb_server_fork = Process(target=modbus_fork_server.serve_forever)
