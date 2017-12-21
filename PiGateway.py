@@ -310,7 +310,6 @@ def main():
                 services_supported = app_dict[dev_inst].get_services_supported()
                 dev_dict[dev_inst].protocolServicesSupported = services_supported.value
 
-                print(services_supported)
                 val_types = {'holdingRegisters': 3, 'inputRegisters': 4, 'coilBits': 1, 'inputBits': 2}
 
                 # create objects for device
