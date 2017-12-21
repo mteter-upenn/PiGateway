@@ -16,7 +16,7 @@ from bacpypes.pdu import Address  # , GlobalBroadcast  # , LocalBroadcast
 from bacpypes.netservice import NetworkServiceAccessPoint, NetworkServiceElement
 from bacpypes.bvllservice import BIPForeign, AnnexJCodec, UDPMultiplexer  # , BIPBBMD
 
-from bacpypes.app import Application
+from bacpypes.app import ApplicationIOController
 from bacpypes.appservice import StateMachineAccessPoint, ApplicationServiceAccessPoint
 from bacpypes.service.device import WhoIsIAmServices  # LocalDeviceObject,
 from bacpypes.service.object import ReadWritePropertyServices, ReadWritePropertyMultipleServices
@@ -59,12 +59,12 @@ def ip_to_bcnt_address(ipstr, mb_id):
 
 @bacpypes_debugging
 # ADDED ReadWritePropertyMultipleServices
-class ModbusVLANApplication(Application, WhoIsIAmServices, ReadWritePropertyServices,
+class ModbusVLANApplication(ApplicationIOController, WhoIsIAmServices, ReadWritePropertyServices,
                             ReadWritePropertyMultipleServices, ChangeOfValueServices):
 
     def __init__(self, vlan_device, vlan_address, ase_id=None):
         if _debug: ModbusVLANApplication._debug("__init__ %r %r aseID=%r", vlan_device, vlan_address, ase_id)
-        Application.__init__(self, vlan_device, vlan_address, ase_id)
+        ApplicationIOController.__init__(self, vlan_device, vlan_address, ase_id)
 
         # include a application decoder
         self.asap = ApplicationServiceAccessPoint()
@@ -98,19 +98,19 @@ class ModbusVLANApplication(Application, WhoIsIAmServices, ReadWritePropertyServ
 
     def request(self, apdu, forwarded=False):
         if _debug: ModbusVLANApplication._debug("[%s]request %r", self.vlan_node.address, apdu)
-        Application.request(self, apdu, forwarded=forwarded)
+        ApplicationIOController.request(self, apdu, forwarded=forwarded)
 
     def indication(self, apdu, forwarded=False):
         if _debug: ModbusVLANApplication._debug("[%s]indication %r %r", self.vlan_node.address, apdu, forwarded)
-        Application.indication(self, apdu, forwarded=forwarded)
+        ApplicationIOController.indication(self, apdu, forwarded=forwarded)
 
     def response(self, apdu, forwarded=False):
         if _debug: ModbusVLANApplication._debug("[%s]response %r", self.vlan_node.address, apdu)
-        Application.response(self, apdu, forwarded=forwarded)
+        ApplicationIOController.response(self, apdu, forwarded=forwarded)
 
     def confirmation(self, apdu, forwarded=False):
         if _debug: ModbusVLANApplication._debug("[%s]confirmation %r", self.vlan_node.address, apdu)
-        Application.confirmation(self, apdu, forwarded=forwarded)
+        ApplicationIOController.confirmation(self, apdu, forwarded=forwarded)
 
     # ADDED
     # def do_WhoIsRequest(self, apdu):
@@ -310,6 +310,7 @@ def main():
                 services_supported = app_dict[dev_inst].get_services_supported()
                 dev_dict[dev_inst].protocolServicesSupported = services_supported.value
 
+                print(services_supported)
                 val_types = {'holdingRegisters': 3, 'inputRegisters': 4, 'coilBits': 1, 'inputBits': 2}
 
                 # create objects for device

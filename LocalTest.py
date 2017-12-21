@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 """
 This sample application shows how to extend one of the basic objects, an Analog
@@ -8,7 +8,7 @@ It assumes that almost all of the default behaviour of a BACpypes application is
 sufficient.
 """
 
-import sys
+import os, sys
 import json
 # import random
 # import argparse
@@ -99,11 +99,19 @@ def main():
     dev_dict = {}
     app_dict = {}
 
-    # for fn in os.listdir(os.getcwd() + '/DeviceList'):
-    #     if fn.endswith('.json') and fn.startswith('DGL'):
+    try:
+        meter_file = args.ini.meterfile
+    except AttributeError:
+        for fn in os.listdir(sys.path[0] + '/DeviceList'):
+            if fn.endswith('.json'):
+                meter_file = 'DeviceList/' + fn
+                break
+        else:
+            print('no meter maps available or given!')
+            return
 
-    print(sys.path[0] + '/' + args.ini.meterfile)
-    json_raw_str = open(sys.path[0] + '/' + args.ini.meterfile, 'r')
+    print(sys.path[0] + '/' + meter_file)
+    json_raw_str = open(sys.path[0] + '/' + meter_file, 'r')
     map_dict = json.load(json_raw_str)
     # good_inst = reg_bank.add_instance(map_dict)
     good_inst = modbusregisters.add_meter_instance_to_dicts(map_dict, mb_to_bank_queue, object_val_dict, mb_req_dict,
