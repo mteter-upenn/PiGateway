@@ -206,6 +206,7 @@ def main():
     max_apdu_len = 1024
     segmentation_support = 'noSegmentation'
     vendor_id = 15
+    bcnt_obj_update_interval = 1000
 
     # create the VLAN router, bind it to the local network
     router = VLANRouter(local_address, local_network, foreign_address)
@@ -478,7 +479,7 @@ def main():
     mb_req_launcher = modbusregisters.ModbusRequestLauncher(mb_req_dict, unq_ip_last_resp_dict)
 
     print('init update objects task')
-    update_objects = modbusbacnetclasses.UpdateObjectsFromModbus(bank_to_bcnt_queue, app_dict, 1000)
+    update_objects = modbusbacnetclasses.UpdateObjectsFromModbus(bank_to_bcnt_queue, app_dict, bcnt_obj_update_interval)
 
     print('start bank and launcher')
     obj_val_bank.start()
