@@ -16,7 +16,7 @@ from bacpypes.pdu import Address  # , GlobalBroadcast  # , LocalBroadcast
 from bacpypes.netservice import NetworkServiceAccessPoint, NetworkServiceElement
 from bacpypes.bvllservice import BIPForeign, AnnexJCodec, UDPMultiplexer  # , BIPBBMD
 
-from bacpypes.app import ApplicationIOController
+from bacpypes.app import ApplicationIOController, Application
 from bacpypes.appservice import StateMachineAccessPoint, ApplicationServiceAccessPoint
 from bacpypes.service.device import WhoIsIAmServices  # LocalDeviceObject,
 from bacpypes.service.object import ReadWritePropertyServices, ReadWritePropertyMultipleServices
@@ -59,12 +59,12 @@ def ip_to_bcnt_address(ipstr, mb_id):
 
 @bacpypes_debugging
 # ADDED ReadWritePropertyMultipleServices
-class ModbusVLANApplication(ApplicationIOController, WhoIsIAmServices, ReadWritePropertyServices,
-                            ReadWritePropertyMultipleServices, ChangeOfValueServices):
+class ModbusVLANApplication(Application, WhoIsIAmServices, ReadWritePropertyServices,
+                            ReadWritePropertyMultipleServices):
 
     def __init__(self, vlan_device, vlan_address, ase_id=None):
         if _debug: ModbusVLANApplication._debug("__init__ %r %r aseID=%r", vlan_device, vlan_address, ase_id)
-        ApplicationIOController.__init__(self, vlan_device, vlan_address, ase_id)
+        Application.__init__(self, vlan_device, vlan_address, ase_id)
 
         # include a application decoder
         self.asap = ApplicationServiceAccessPoint()
@@ -98,18 +98,78 @@ class ModbusVLANApplication(ApplicationIOController, WhoIsIAmServices, ReadWrite
 
     def request(self, apdu, forwarded=False):
         if _debug: ModbusVLANApplication._debug("[%s]request %r", self.vlan_node.address, apdu)
-        ApplicationIOController.request(self, apdu, forwarded=forwarded)
+        Application.request(self, apdu, forwarded=forwarded)
 
     def indication(self, apdu, forwarded=False):
         if _debug: ModbusVLANApplication._debug("[%s]indication %r %r", self.vlan_node.address, apdu, forwarded)
-        ApplicationIOController.indication(self, apdu, forwarded=forwarded)
+        Application.indication(self, apdu, forwarded=forwarded)
 
     def response(self, apdu, forwarded=False):
         if _debug: ModbusVLANApplication._debug("[%s]response %r", self.vlan_node.address, apdu)
-        ApplicationIOController.response(self, apdu, forwarded=forwarded)
+        Application.response(self, apdu, forwarded=forwarded)
 
     def confirmation(self, apdu, forwarded=False):
         if _debug: ModbusVLANApplication._debug("[%s]confirmation %r", self.vlan_node.address, apdu)
+        Application.confirmation(self, apdu, forwarded=forwarded)
+
+
+#
+#   VLANApplication with COVsubscription
+#
+
+@bacpypes_debugging
+# ADDED ReadWritePropertyMultipleServices
+class ModbusCOVVLANApplication(ApplicationIOController, WhoIsIAmServices, ReadWritePropertyServices,
+                            ReadWritePropertyMultipleServices, ChangeOfValueServices):
+
+    def __init__(self, vlan_device, vlan_address, ase_id=None):
+        if _debug: ModbusCOVVLANApplication._debug("__init__ %r %r aseID=%r", vlan_device, vlan_address, ase_id)
+        ApplicationIOController.__init__(self, vlan_device, vlan_address, ase_id)
+
+        # include a application decoder
+        self.asap = ApplicationServiceAccessPoint()
+
+        # pass the device object to the state machine access point so it
+        # can know if it should support segmentation
+        self.smap = StateMachineAccessPoint(vlan_device)
+
+        # the segmentation state machines need access to the same device
+        # information cache as the application
+        self.smap.deviceInfoCache = self.deviceInfoCache
+
+        # a network service access point will be needed
+        self.nsap = NetworkServiceAccessPoint()
+
+        # give the NSAP a generic network layer service element
+        self.nse = NetworkServiceElement()
+        bind(self.nse, self.nsap)
+
+        # bind the top layers
+        bind(self, self.asap, self.smap, self.nsap)
+
+        # create a vlan node at the assigned address
+        self.vlan_node = Node(vlan_address)
+
+        # bind the stack to the node, no network number
+        self.nsap.bind(self.vlan_node)
+
+        # set register reader class that will look into block of registers for all associated slaves
+        # self.register_reader = register_reader
+
+    def request(self, apdu, forwarded=False):
+        if _debug: ModbusCOVVLANApplication._debug("[%s]request %r", self.vlan_node.address, apdu)
+        ApplicationIOController.request(self, apdu, forwarded=forwarded)
+
+    def indication(self, apdu, forwarded=False):
+        if _debug: ModbusCOVVLANApplication._debug("[%s]indication %r %r", self.vlan_node.address, apdu, forwarded)
+        ApplicationIOController.indication(self, apdu, forwarded=forwarded)
+
+    def response(self, apdu, forwarded=False):
+        if _debug: ModbusCOVVLANApplication._debug("[%s]response %r", self.vlan_node.address, apdu)
+        ApplicationIOController.response(self, apdu, forwarded=forwarded)
+
+    def confirmation(self, apdu, forwarded=False):
+        if _debug: ModbusCOVVLANApplication._debug("[%s]confirmation %r", self.vlan_node.address, apdu)
         ApplicationIOController.confirmation(self, apdu, forwarded=forwarded)
 
     # ADDED
@@ -268,6 +328,7 @@ def main():
                 dev_map_rev = map_dict['mapRev']
                 dev_meter_model = map_dict['meterModelName']
                 dev_mb_port = map_dict['modbusPort']
+                dev_cov = map_dict.get('covSubscribe', 'no')
 
                 # dev_list.append(modbusbacnetclasses.ModbusLocalDevice(
                 #     objectName=dev_name,
@@ -304,7 +365,12 @@ def main():
                 # services_supported = app_list[-1].get_services_supported()
                 # dev_list[-1].protocolServicesSupported = services_supported.value
 
-                app_dict[dev_inst] = ModbusVLANApplication(dev_dict[dev_inst], ip_to_bcnt_address(dev_ip, dev_mb_id))
+                if dev_cov == 'yes':
+                    app_dict[dev_inst] = ModbusCOVVLANApplication(dev_dict[dev_inst],
+                                                                  ip_to_bcnt_address(dev_ip, dev_mb_id))
+                else:
+                    app_dict[dev_inst] = ModbusVLANApplication(dev_dict[dev_inst],
+                                                               ip_to_bcnt_address(dev_ip, dev_mb_id))
                 vlan.add_node(app_dict[dev_inst].vlan_node)
 
                 services_supported = app_dict[dev_inst].get_services_supported()
