@@ -250,9 +250,6 @@ def main():
     # parse the command line arguments
     args = ConfigArgumentParser(description=__doc__).parse_args()
 
-    # modbusregisters._debug_modbus_registers = (args.ini.debugprint == 'True')
-    # modbusbacnetclasses._mb_bcnt_cls_debug = (args.ini.debugprint == 'True')
-
     # local_address = Address('130.91.139.93/22')
     # local_network = 0
     # vlan_network = 9997
@@ -261,7 +258,10 @@ def main():
     local_network = int(args.ini.localnetwork)
     vlan_network = int(args.ini.vlannetwork)
     foreign_address = Address(args.ini.bbmdip)
-    mb_timeout = int(args.ini.modbustimeout)
+    try:
+        mb_timeout = int(args.ini.modbustimeout)
+    except AttributeError:
+        mb_timeout = 1000
     mbtcp_timeout = int(args.ini.mbtcpservertimeout)
     max_apdu_len = 1024
     segmentation_support = 'noSegmentation'
@@ -290,15 +290,6 @@ def main():
     dev_dict = {}
     app_dict = {}
 
-    # bank_to_out_queue = queue.Queue()
-    # out_to_bank_queue = queue.PriorityQueue()
-
-    # reg_reader = modbusregisters.RegisterReader(out_to_bank_queue)  # , bank_to_out_queue)
-    # reg_bank = modbusregisters.RegisterBankThread(out_to_bank_queue)
-    #
-    # dev_list = []
-    # app_list = []
-
     for fn in os.listdir(sys.path[0] + '/DeviceList'):
         if fn.endswith('.json'):  # and fn.startswith('DRL'):
             print(sys.path[0] + '/DeviceList/' + fn)
@@ -320,15 +311,21 @@ def main():
             # "modbusPort": 502,
             # "holdingRegisters": {
             if good_inst:
-                dev_name = map_dict['deviceName']
-                dev_inst = map_dict['deviceInstance']
-                dev_desc = map_dict['deviceDescription']
-                dev_ip = map_dict['deviceIP']
-                dev_mb_id = map_dict['modbusId']
-                dev_map_name = map_dict['mapName']
-                dev_map_rev = map_dict['mapRev']
-                dev_meter_model = map_dict['meterModelName']
-                dev_mb_port = map_dict['modbusPort']
+                try:
+                    dev_inst = map_dict['deviceInstance']
+                    dev_ip = map_dict['deviceIP']
+                    dev_mb_id = map_dict['modbusId']
+                except KeyError:
+                    _log.debug("json key error for %s", fn)
+                    continue
+
+                dev_name = map_dict.get('deviceName', 'default device name')
+                dev_desc = map_dict.get('deviceDescription', 'UTILITY; Feeds: BUILDING_EQUATION; From: ELECTRIC_LINES; '
+                                                             'Serno: SERIAL_NUMBER; IP: METER_IP; MBid: MODBUS_ID')
+                dev_map_name = map_dict.get('mapName', 'default map')
+                dev_map_rev = map_dict.get('mapRev', 'default map rev')
+                dev_meter_model = map_dict.get('meterModelName', 'default meter model')
+                dev_mb_port = map_dict.get('modbusPort', 502)
                 dev_cov = map_dict.get('covSubscribe', 'no')
 
                 # dev_list.append(modbusbacnetclasses.ModbusLocalDevice(
@@ -384,8 +381,8 @@ def main():
                     if val_type not in map_dict or val_type not in ['holdingRegisters', 'inputRegisters']:
                         continue
 
-                    mb_dev_wo = map_dict[val_type]['wordOrder']
-                    mb_dev_poll_time = map_dict[val_type]['pollingTime']
+                    mb_dev_wo = map_dict[val_type].get('wordOrder', 'lsw')
+                    mb_dev_poll_time = map_dict[val_type].get('pollingTime', 30000)
 
                     for register in map_dict[val_type]['registers']:
                         # "objectName": "heat_flow_steam",
@@ -400,11 +397,16 @@ def main():
                         if register['poll'] == 'no':
                             continue
 
-                        obj_name = register['objectName']
-                        obj_description = register['objectDescription']
-                        obj_inst = register['objectInstance']
-                        obj_reg_start = register['start']
-                        obj_reg_format = register['format']
+                        try:
+                            obj_inst = register['objectInstance']
+                            obj_reg_start = register['start']
+                            obj_reg_format = register['format']
+                        except KeyError:
+                            continue
+
+                        obj_name = register.get('objectName', 'default object name')
+                        obj_description = register.get('objectDescription', 'default object description')
+
                         if obj_reg_format in modbusregisters.one_register_formats:
                             obj_num_regs = 1
                         elif obj_reg_format in modbusregisters.two_register_formats:
@@ -415,8 +417,8 @@ def main():
                             obj_num_regs = 4
                         else:
                             continue
-                        obj_units_id = register['unitsId']
-                        obj_pt_scale = register['pointScale']
+                        obj_units_id = register.get('unitsId', 95)  # 95 is noUnits
+                        obj_pt_scale = register.get('pointScale', [0, 1, 0, 1])
                         obj_eq_m = (obj_pt_scale[3] - obj_pt_scale[2]) / (obj_pt_scale[1] - obj_pt_scale[0])
                         obj_eq_b = obj_pt_scale[2] - obj_eq_m * obj_pt_scale[0]
                         # print('m', obj_eq_m, 'b', obj_eq_b)
@@ -459,84 +461,6 @@ def main():
                         # _log.debug("    - maio: %r", maio)
                         # app_list[-1].add_object(maio)
                         app_dict[dev_inst].add_object(maio)
-
-    # # device identifier is assigned from the address
-    # # device_instance = vlan_network * 100 + int(args.addr2)
-    # device_instance = vlan_network * 100 + 5  # vlan_address
-    # device_instance2 = vlan_network * 100 + 6
-    # _log.debug("    - device_instance: %r", device_instance)
-    #
-    # # make a vlan device object
-    # # vlan_device = \
-    # #     LocalDeviceObject(
-    # #         objectName="VLAN Node %d" % (device_instance,),
-    # #         objectIdentifier=('device', device_instance),
-    # #         maxApduLengthAccepted=1024,
-    # #         segmentationSupported='noSegmentation',
-    # #         vendorIdentifier=15,
-    # #         )
-    # # ADDED
-    # vlan_device = \
-    #     LocalDeviceObject(
-    #         objectName='laptopBehindNetwork',
-    #         objectIdentifier=device_instance,
-    #         maxApduLengthAccepted=1024,
-    #         segmentationSupported='noSegmentation',
-    #         vendorIdentifier=15,
-    #         )
-    # vlan_device2 = \
-    #     LocalDeviceObject(
-    #         objectName='laptopBehindNetwork2',
-    #         objectIdentifier=device_instance2,
-    #         maxApduLengthAccepted=1024,
-    #         segmentationSupported='noSegmentation',
-    #         vendorIdentifier=15,
-    #     )
-    # # ADDED
-    # _log.debug("    - vlan_device: %r", vlan_device)
-    #
-    # # make the application, add it to the network
-    # vlan_app = ModbusVLANApplication(vlan_device, vlan_address)
-    # vlan.add_node(vlan_app.vlan_node)
-    #
-    # vlan_app2 = ModbusVLANApplication(vlan_device2, Address(6))
-    # vlan.add_node(vlan_app2.vlan_node)
-    # _log.debug("    - vlan_app: %r", vlan_app)
-    #
-    # # ADDED
-    # services_supported = vlan_app.get_services_supported()
-    #
-    # # let the device object know
-    # vlan_device.protocolServicesSupported = services_supported.value
-    #
-    # services_supported = vlan_app2.get_services_supported()
-    #
-    # # let the device object know
-    # vlan_device2.protocolServicesSupported = services_supported.value
-    # # ADDED
-    #
-    # # make a random value object
-    # # maio = RandomAnalogValueObject(
-    # #     objectIdentifier=('analogValue', 1),
-    # #     objectName='Device%d/Random1' % (device_instance,),
-    # #     )
-    # maio = modbusbacnetclasses.ModbusAnalogInputObject(device_instance, reg_reader,
-    #     objectIdentifier=('analogInput', 1),
-    #     objectName='Device%d/Modbus1' % (device_instance,),
-    # )
-    # _log.debug("    - ravo1: %r", maio)
-    #
-    # # add it to the device
-    # vlan_app.add_object(maio)
-    #
-    # # make a random value object
-    # maio = modbusbacnetclasses.ModbusAnalogInputObject(device_instance2, reg_reader,
-    #     objectIdentifier=('analogInput', 1),
-    #     objectName='Device%d/Modbus1' % (device_instance2,),
-    # )
-    #
-    # # add it to the device
-    # vlan_app2.add_object(maio)
 
     print('init modbus bank')
     obj_val_bank = modbusregisters.ModbusFormatAndStorage(mb_to_bank_queue, bank_to_bcnt_queue, object_val_dict)

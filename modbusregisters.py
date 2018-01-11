@@ -81,15 +81,19 @@ def add_meter_instance_to_dicts(meter_map_dict, mb_to_bank_queue, object_bank, m
     """
 
     func_regs = {}
-    bcnt_inst = meter_map_dict['deviceInstance']
-    if bcnt_inst in object_bank:  # bacnet instance already exists!
+
+    try:
+        bcnt_inst = meter_map_dict['deviceInstance']
+        if bcnt_inst in object_bank:  # bacnet instance already exists!
+            return False
+        clstr = 0
+        mb_ip = meter_map_dict['deviceIP']
+        if mb_ip == '0.0.0.0':
+            mb_ip = '/dev/serial0'
+        mb_id = meter_map_dict['modbusId']
+    except KeyError:
         return False
-    clstr = 0
-    mb_ip = meter_map_dict['deviceIP']
-    if mb_ip == '0.0.0.0':
-        mb_ip = '/dev/serial0'
-    mb_id = meter_map_dict['modbusId']
-    mb_port = meter_map_dict['modbusPort']
+    mb_port = meter_map_dict.get('modbusPort', 502)
     val_types = {'holdingRegisters': 3, 'inputRegisters': 4, 'coilBits': 1, 'inputBits': 2}
 
     trigger_time = time.time()
@@ -100,11 +104,13 @@ def add_meter_instance_to_dicts(meter_map_dict, mb_to_bank_queue, object_bank, m
         if val_type not in meter_map_dict:  # ('holdingRegisters', 'inputRegisters', 'coilBits', 'inputBits'):
             continue
 
-        mb_polling_time = meter_map_dict[val_type]['pollingTime']
-        mb_request_timeout = meter_map_dict[val_type]['requestTimeout']
-        mb_grp_cons = True if meter_map_dict[val_type]['groupConsecutive'] == 'yes' else False
-        mb_grp_gaps = True if meter_map_dict[val_type]['groupGaps'] == 'yes' else False
-        mb_word_order = meter_map_dict[val_type]['wordOrder']
+        mb_polling_time = meter_map_dict[val_type].get('pollingTime', 30000)
+        mb_request_timeout = meter_map_dict[val_type].get('requestTimeout', 1000)
+        mb_grp_cons_str = meter_map_dict[val_type].get('groupConsecutive', 'yes')
+        mb_grp_cons = True if mb_grp_cons_str == 'yes' else False
+        mb_grp_gaps_str = meter_map_dict[val_type].get('groupGaps', 'no')
+        mb_grp_gaps = True if mb_grp_gaps_str == 'yes' else False
+        mb_word_order = meter_map_dict[val_type].get('wordOrder', 'lsw')
 
         raw_objs = {}
         raw_regs_list = []
@@ -113,10 +119,13 @@ def add_meter_instance_to_dicts(meter_map_dict, mb_to_bank_queue, object_bank, m
             if register['poll'] == 'no':
                 continue
 
-            start_reg = register['start']
-            obj_inst = register['objectInstance']
-            num_regs = format_to_num_regs(register['format'])
-            obj_pt_scale = register['pointScale']
+            try:
+                start_reg = register['start']
+                obj_inst = register['objectInstance']
+                num_regs = format_to_num_regs(register['format'])
+            except KeyError:
+                continue
+            obj_pt_scale = register.get('pointScale', [0, 1, 0, 1])
             obj_eq_m = (obj_pt_scale[3] - obj_pt_scale[2]) / (obj_pt_scale[1] - obj_pt_scale[0])
             obj_eq_b = obj_pt_scale[2] - obj_eq_m * obj_pt_scale[0]
 
