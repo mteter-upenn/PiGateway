@@ -242,6 +242,17 @@ class VLANRouter:
         self.nsap.bind(self.bip, local_network, self.local_address)
 
 
+def verify_ini_vars(args_ini, ini_attr, default_val):
+    default_type = type(default_val)
+
+    try:
+        return default_type(getattr(args_ini, ini_attr, default_val))
+    except ValueError:
+        return default_val
+    # except AttributeError:
+    #     return default_val
+
+
 #
 #   __main__
 #
@@ -258,15 +269,12 @@ def main():
     local_network = int(args.ini.localnetwork)
     vlan_network = int(args.ini.vlannetwork)
     foreign_address = Address(args.ini.bbmdip)
-    try:
-        mb_timeout = int(args.ini.modbustimeout)
-    except AttributeError:
-        mb_timeout = 1000
-    mbtcp_timeout = int(args.ini.mbtcpservertimeout)
-    max_apdu_len = 1024
-    segmentation_support = 'noSegmentation'
-    vendor_id = 15
-    bcnt_obj_update_interval = 1000
+    mb_timeout = verify_ini_vars(args.ini, 'modbustimeout', 1000)
+    mbtcp_timeout = verify_ini_vars(args.ini, 'mbtcpservertimeout', 5000)
+    max_apdu_len = verify_ini_vars(args.ini, 'maxapdulength', 1024)
+    segmentation_support = verify_ini_vars(args.ini, 'segmentationsupport', 'noSegmentation')
+    vendor_id = verify_ini_vars(args.ini, 'vendorid', 15)
+    bcnt_obj_update_interval = verify_ini_vars(args.ini, 'bacnetobjectupdateinterval', 1000)
 
     # create the VLAN router, bind it to the local network
     router = VLANRouter(local_address, local_network, foreign_address)
