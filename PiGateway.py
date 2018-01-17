@@ -275,6 +275,7 @@ def main():
     segmentation_support = verify_ini_vars(args.ini, 'segmentationsupport', 'noSegmentation')
     vendor_id = verify_ini_vars(args.ini, 'vendorid', 15)
     bcnt_obj_update_interval = verify_ini_vars(args.ini, 'bacnetobjectupdateinterval', 1000)
+    default_cov_inc = verify_ini_vars(args.ini, 'defaultcovincrement', 0.0)
 
     # create the VLAN router, bind it to the local network
     router = VLANRouter(local_address, local_network, foreign_address)
@@ -414,6 +415,7 @@ def main():
 
                         obj_name = register.get('objectName', 'default object name')
                         obj_description = register.get('objectDescription', 'default object description')
+                        obj_cov_inc = register.get('covIncrement', default_cov_inc)
 
                         if obj_reg_format in modbusregisters.one_register_formats:
                             obj_num_regs = 1
@@ -457,7 +459,7 @@ def main():
                             # modbusScaling=[obj_eq_m, obj_eq_b],
                             modbusScaling=ArrayOf(Real)([obj_eq_m, obj_eq_b]),
                             units=obj_units_id,
-                            covIncrement=0.0,
+                            covIncrement=obj_cov_inc,
                             updateInterval=int(mb_dev_poll_time / 10.0),
                             resolution=0.0,
                             reliability='communicationFailure',
