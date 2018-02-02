@@ -323,6 +323,7 @@ class UpdateObjectsFromModbus(RecurringTask):
                         bcnt_obj.WriteProperty('reliability', 'communicationFailure', direct=True)
                         change_object_prop_if_new(bcnt_obj, 'statusFlags', 0, arr_idx='fault')
                         bcnt_obj.WriteProperty('modbusCommErr', obj_values['error'], direct=True)
+                        bcnt_obj.WriteProperty('presentValue', 0.0, direct=True)
                     else:
                         # change_object_prop_if_new(bcnt_obj, 'reliability', 'noFaultDetected')
                         # change_object_prop_if_new(bcnt_obj, 'statusFlags', 0, arr_idx='fault')
