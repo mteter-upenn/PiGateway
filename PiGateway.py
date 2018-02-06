@@ -4,6 +4,7 @@
 # import argparse
 import os, sys
 import json
+from time import time as _time
 
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
 from bacpypes.consolelogging import ConfigArgumentParser
@@ -26,6 +27,8 @@ from bacpypes.constructeddata import ArrayOf
 from bacpypes.primitivedata import Real  # , Integer, CharacterString
 # from bacpypes.object import Property, register_object_type, AnalogInputObject, ReadableProperty  # , AnalogValueObject
 # from bacpypes.basetypes import StatusFlags
+
+from bacpypes.task import RecurringTask
 
 from bacpypes.vlan import Network, Node
 # from bacpypes.errors import ExecutionError
@@ -189,6 +192,9 @@ class ModbusCOVVLANApplication(ApplicationIOController, WhoIsIAmServices, ReadWr
     # ADDED
 
 
+
+
+
 #
 #   VLANRouter
 #
@@ -196,7 +202,7 @@ class ModbusCOVVLANApplication(ApplicationIOController, WhoIsIAmServices, ReadWr
 @bacpypes_debugging
 class VLANRouter:
 
-    def __init__(self, local_address, local_network, foreign_address, bbmd_ttl=30):
+    def __init__(self, local_address, local_network, foreign_address, bbmd_ttl=30, rebootQueue=None):
         if _debug: VLANRouter._debug("__init__ %r %r", local_address, local_network)
 
         if isinstance(local_address, Address):
@@ -230,7 +236,9 @@ class VLANRouter:
         # self.bip = BIPForeign(Address('192.168.1.10'), 30)
         # self.bip = BIPForeign(Address('130.91.139.99'), 30)
         self.annexj = AnnexJCodec()
-        self.mux = UDPMultiplexer(self.local_address, noBroadcast=True)
+        # noBroadcast=True stops bcast to local ntwrk
+        self.mux = UDPMultiplexer(self.local_address, noBroadcast=True, rebootQueue=rebootQueue)
+
         # end
         # self.bip.add_peer(Address('10.166.1.72'))
         # ADDED
@@ -240,6 +248,32 @@ class VLANRouter:
 
         # bind the BIP stack to the local network
         self.nsap.bind(self.bip, local_network, self.local_address)
+
+
+@bacpypes_debugging
+class RebootWithNoTraffic(RecurringTask):
+    def __init__(self, rebootQueue, time_to_check=1800000):
+        if _debug: RebootWithNoTraffic._debug('init')
+        RecurringTask.__init__(self, time_to_check)
+
+        self.time_to_check_s = time_to_check / 1000.0
+        self.reboot_queue = rebootQueue
+
+        # install it
+        self.install_task()
+
+    def process_task(self):
+        start_time = _time()
+        if _debug: RebootWithNoTraffic._debug('start recurring task')
+
+        last_msg = 0.0
+
+        while not self.reboot_queue.empty:
+            last_msg = self.reboot_queue.get_nowait()
+
+        if start_time - last_msg > self.time_to_check_s:
+            os.system('sudo shutdown -r now')
+            # print('THE SYSTEM SHOULD REBOOT HERE')
 
 
 def verify_ini_vars(args_ini, ini_attr, default_val):
@@ -276,9 +310,13 @@ def main():
     vendor_id = verify_ini_vars(args.ini, 'vendorid', 15)
     bcnt_obj_update_interval = verify_ini_vars(args.ini, 'bacnetobjectupdateinterval', 1000)
     default_cov_inc = verify_ini_vars(args.ini, 'defaultcovincrement', 0.0)
+    reboot_check_time = verify_ini_vars(args.ini, 'rebootchecktime', 1800000)
+
+    reboot_queue = queue.Queue()
+    reboot_queue.put_nowait(_time())
 
     # create the VLAN router, bind it to the local network
-    router = VLANRouter(local_address, local_network, foreign_address)
+    router = VLANRouter(local_address, local_network, foreign_address, rebootQueue=reboot_queue)
 
     # create a VLAN
     vlan = Network()
@@ -480,6 +518,9 @@ def main():
 
     print('init update objects task')
     update_objects = modbusbacnetclasses.UpdateObjectsFromModbus(bank_to_bcnt_queue, app_dict, bcnt_obj_update_interval)
+
+    print('init check for reboot')
+    reboot_task = RebootWithNoTraffic(reboot_queue, time_to_check=reboot_check_time)
 
     print('start bank and launcher')
     obj_val_bank.start()
