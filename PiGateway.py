@@ -5,6 +5,7 @@
 import os, sys
 import json
 from time import time as _time
+from time import strftime, localtime
 
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
 from bacpypes.consolelogging import ConfigArgumentParser
@@ -54,6 +55,14 @@ def ip_to_bcnt_address(ipstr, mb_id):
     iparr.append(0)
     iparr.append(mb_id)
     return Address(bytearray(iparr))
+
+
+def _strftime(cur_time=None):
+    if cur_time is None:
+        cur_time = _time()
+    time_dec = str(round(cur_time - int(cur_time), 6))[1:]
+    time_struct = localtime(cur_time)
+    return strftime('%X' + time_dec + ' %x', time_struct)
 
 
 #
@@ -264,16 +273,20 @@ class RebootWithNoTraffic(RecurringTask):
 
     def process_task(self):
         start_time = _time()
-        if _debug: RebootWithNoTraffic._debug('start recurring task')
+        if _debug: RebootWithNoTraffic._debug('start recurring task, queue: %s', self.reboot_queue.queue)
 
         last_msg = 0.0
 
-        while not self.reboot_queue.empty:
+        while not self.reboot_queue.empty():
             last_msg = self.reboot_queue.get_nowait()
 
-        if start_time - last_msg > self.time_to_check_s:
+        if (start_time - last_msg) > (1.1 * self.time_to_check_s):
+            if _debug: RebootWithNoTraffic._debug('    - TIME FAILURE, now: %s, last: %s', _strftime(start_time),
+                                                  _strftime(last_msg))
             os.system('sudo shutdown -r now')
-            # print('THE SYSTEM SHOULD REBOOT HERE')
+        else:
+            if _debug: RebootWithNoTraffic._debug('    - TIME SUCCESS, now: %s, last: %s', _strftime(start_time),
+                                                  _strftime(last_msg))
 
 
 def verify_ini_vars(args_ini, ini_attr, default_val):
