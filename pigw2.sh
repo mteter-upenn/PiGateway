@@ -11,24 +11,36 @@ function check_online
 #    netcat -z -w 5 8.8.8.8 53 && echo 1 || echo 0
 }
 
+function turn_on_led
+{
+    if [ "$OSTYPE" == "linux-gnueabihf" ]; then
+        gpio -g mode 17 out
+        gpio -g write 17 1
+    fi
+}
+
 
 FLAGFILE=/var/run/pigw-already-started
+ignore_flagfile=0
 
-#if [[ -e $FLAGFILE ]]; then
-#    exit 0
-#else
-#    touch $FLAGFILE
-#fi
+# get arguments
+while [ "$1" != "" ]; do
+    case $1 in
+        -i | --ignore-flagfile )    ignore_flagfile=1
+                                    ;;
+        * )                         ;;
+    esac
+    shift
+done
 
-if [ "$OSTYPE" == "linux-gnueabihf" ]; then
-    gpio -g mode 17 out
-    gpio -g write 17 1
+# test for flagfile, exit if it exists, otherwise create to make hold
+if [[ -e $FLAGFILE && $ignore_flagfile != 1 ]]; then
+    exit 0
 else
-    echo "not arm"
+    touch $FLAGFILE
 fi
 
-exit 1
-
+turn_on_led
 
 # Initial check to see if we're online
 IS_ONLINE=$( check_online )
@@ -40,7 +52,6 @@ CHECKS=0
 # Loop while we're not online.
 while (( $IS_ONLINE == 0 ));do
     # We're offline. Sleep for a bit, then check again
-
     sleep 10;
     IS_ONLINE=$( check_online )
 
@@ -50,8 +61,8 @@ while (( $IS_ONLINE == 0 ));do
     fi
 done
 
+# We never were able to get online. Kill script and relase flagfile.
 if (( $IS_ONLINE == 0 )); then
-    # We never were able to get online. Kill script.
     if [[ -e $FLAGFILE ]]; then        
         rm $FLAGFILE
     fi
@@ -62,10 +73,7 @@ fi
 #touch $FLAGFILE
 
 # BE SURE TO CHANGE DIRECTORIES IF NEEDED!!!!!
-#echo 'start python3 env'
 sudo -u fresep screen -dmS first-screen bash -c 'cd /home/fresep/pckt_caps; exec bash'
-#sudo -u fresep screen -ls
-#echo 'start bacnet modbus script'
+
 sudo -u fresep screen -dmS bacnet-modbus bash -c 'sudo /home/fresep/PiGateway/PiGateway.py --ini /home/fresep/PATH/TO/.ini --debug bacpypes.core.run; cd /home/fresep/PiGateway; exec bash'
 #modbusbacnetclasses.UpdateObjectsFromModbus
-#sudo -u fresep screen -ls
