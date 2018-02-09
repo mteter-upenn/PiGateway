@@ -14,11 +14,21 @@ function check_online
 
 FLAGFILE=/var/run/pigw-already-started
 
-if [[ -e $FLAGFILE ]]; then
-    exit 0
+#if [[ -e $FLAGFILE ]]; then
+#    exit 0
+#else
+#    touch $FLAGFILE
+#fi
+
+if [ "$OSTYPE" == "linux-gnueabihf" ]; then
+    gpio -g mode 17 out
+    gpio -g write 17 1
 else
-    touch $FLAGFILE
+    echo "not arm"
 fi
+
+exit 1
+
 
 # Initial check to see if we're online
 IS_ONLINE=$( check_online )
@@ -42,7 +52,9 @@ done
 
 if (( $IS_ONLINE == 0 )); then
     # We never were able to get online. Kill script.
-    rm $FLAGFILE
+    if [[ -e $FLAGFILE ]]; then        
+        rm $FLAGFILE
+    fi
     exit 1
 fi
 
