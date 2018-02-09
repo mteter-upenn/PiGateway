@@ -21,6 +21,7 @@ from bacpypes.appservice import StateMachineAccessPoint, ApplicationServiceAcces
 from bacpypes.service.device import WhoIsIAmServices  # LocalDeviceObject,
 from bacpypes.service.object import ReadWritePropertyServices, ReadWritePropertyMultipleServices
 from bacpypes.service.cov import ChangeOfValueServices
+from bacpypes.task import RecurringTask
 
 from bacpypes.constructeddata import ArrayOf
 from bacpypes.primitivedata import Real  # , Integer, CharacterString
@@ -37,8 +38,15 @@ from multiprocessing import Process
 import modbusserver
 import queue
 
-
-# from bacpypes.basetypes import PropertyIdentifier
+try:
+    import RPi.GPIO as GPIO
+except ImportError:
+    B_RPI_GPIO_EXISTS = False
+except RuntimeError:
+    B_RPI_GPIO_EXISTS = False
+else:
+    GPIO.setmode(GPIO.BOARD)
+    B_RPI_GPIO_EXISTS = True
 
 
 # some debugging
@@ -240,6 +248,31 @@ class VLANRouter:
 
         # bind the BIP stack to the local network
         self.nsap.bind(self.bip, local_network, self.local_address)
+
+
+@bacpypes_debugging
+class LEDHeartbeat(RecurringTask):
+    def __init__(self, heartbeat_on_time=1000, pin_board_num=11):
+        if _debug: LEDHeartbeat._debug('init')
+        RecurringTask.__init__(self, heartbeat_on_time)
+
+        # self.heartbeat_on_time = heartbeat_on_time / 1000  # set in ms to coincide with interval
+        self.pin_board_num = pin_board_num
+        self.pin_value = False
+
+        GPIO.setmode(self.pin_board_num, GPIO.OUT)
+        GPIO.output(self.pin_board_num, GPIO.LOW)
+
+        # install it
+        self.install_task()
+
+    def process_task(self):
+        if self.pin_value:
+            GPIO.output(self.pin_board_num, GPIO.LOW)
+            self.pin_value = False
+        else:
+            GPIO.output(self.pin_board_num, GPIO.HIGH)
+            self.pin_value = True
 
 
 def verify_ini_vars(args_ini, ini_attr, default_val):
@@ -480,6 +513,12 @@ def main():
 
     print('init update objects task')
     update_objects = modbusbacnetclasses.UpdateObjectsFromModbus(bank_to_bcnt_queue, app_dict, bcnt_obj_update_interval)
+
+    if B_RPI_GPIO_EXISTS:
+        print('init led heartbeat task')
+        led_heartbeat = LEDHeartbeat(heartbeat_on_time=1000, pin_board_num=11)
+    else:
+        print('no heartbeat here')
 
     print('start bank and launcher')
     obj_val_bank.start()
