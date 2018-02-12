@@ -260,7 +260,7 @@ class LEDHeartbeat(RecurringTask):
         self.pin_board_num = pin_board_num
         self.pin_value = False
 
-        GPIO.setmode(self.pin_board_num, GPIO.OUT)
+        GPIO.setup(self.pin_board_num, GPIO.OUT)
         GPIO.output(self.pin_board_num, GPIO.LOW)
 
         # install it

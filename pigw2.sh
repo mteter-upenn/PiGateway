@@ -63,7 +63,7 @@ done
 
 # We never were able to get online. Kill script and relase flagfile.
 if (( $IS_ONLINE == 0 )); then
-    if [[ -e $FLAGFILE ]]; then        
+    if [[ -e $FLAGFILE ]]; then
         rm $FLAGFILE
     fi
     exit 1
