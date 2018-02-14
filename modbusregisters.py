@@ -431,13 +431,13 @@ def format_registers_to_point(registers, reg_frmt, reg_wo, slope=1, intercept=0)
                 pt_val = (-1) * (reg_3 * (10 ** 12) + reg_2 * (10 ** 8) + reg_1 * 10000 + reg_0)
             else:
                 pt_val = reg_3 * (10 ** 12) + reg_2 * (10 ** 8) + reg_1 * 10000 + reg_0
-        elif reg_frmt == 'engy':
+        elif reg_frmt == 'energy':
             # split r3 into engineering and mantissa bytes THIS WILL NOT HANDLE MANTISSA - DOCUMENTATION DOES
             # NOT EXIST ON HOW TO HANDLE IT WITH THEIR UNITS
 
             engr = unpack('b', pack('B', (reg_3 >> 8)))[0]
             pt_val = ((reg_2 << 32) | (reg_1 << 16) | reg_0) * (10 ** engr)
-        elif reg_frmt == 'dbl':
+        elif reg_frmt == 'double':
             pt_val = unpack('d', pack('Q', (reg_3 << 48) | (reg_2 << 32) | (reg_1 << 16) | reg_0))[0]
     else:
         pt_val = 0.0
