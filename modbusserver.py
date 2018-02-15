@@ -121,7 +121,7 @@ def make_modbus_request_handler(mb_timeout=1000, tcp_timeout=5000):
                             response_list.extend(raw_byte_return)
                             response = bytes(response_list)
                             if _debug: KlassModbusRequestHandler._debug('        - modbus return trans id %r: %r',
-                                                                        response_list)
+                                                                        transaction_id, response_list)
                     # response = bytes([0, 0, 0, 0, 0, 7, 1, 3, 4, 1, 2, 3, 4])
                     # if _debug: KlassModbusRequestHandler._debug('response to modbus request in process %s: %s',
                     #                                             cur_process, response)
