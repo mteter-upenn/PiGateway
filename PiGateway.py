@@ -485,6 +485,7 @@ def main():
 
     mb_server_fork = Process(target=modbus_fork_server.serve_forever)
     mb_server_fork.daemon = True
+    print('modbus server start')
     mb_server_fork.start()
 
     _log.debug("running")

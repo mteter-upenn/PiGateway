@@ -4,11 +4,11 @@ import mbpy.mb_poll as mb_poll
 import select
 import socket
 
-# from bacpypes.debugging import bacpypes_debugging, ModuleLogger
-#
-#
-# _debug = 0
-# _log = ModuleLogger(globals())
+from bacpypes.debugging import bacpypes_debugging, ModuleLogger
+
+
+_debug = 0
+_log = ModuleLogger(globals())
 
 
 def parse_modbus_request(message):
@@ -45,9 +45,13 @@ def make_modbus_request_handler(mb_timeout=1000, tcp_timeout=5000):
     # @bacpypes_debugging
     class KlassModbusRequestHandler(socketserver.BaseRequestHandler):  # , object):
         def __init__(self, *args, **kwargs):
+            # if _debug: KlassModbusRequestHandler._debug('__init__ mb timeout: %r, tcp timeout: %r', mb_timeout,
+            #                                             tcp_timeout)
+            print('print __init__ mb_timeout: %r, tcp_timeout: %r' % (mb_timeout, tcp_timeout))
             self.mb_timeout = mb_timeout
             self.tcp_timeout = tcp_timeout / 1000.0
             super(KlassModbusRequestHandler, self).__init__(*args, **kwargs)
+
 
         def handle(self):
             # available class variables
@@ -56,6 +60,7 @@ def make_modbus_request_handler(mb_timeout=1000, tcp_timeout=5000):
             #     self.server -
 
             # cur_process = multiprocessing.current_process()
+            print('handle')
             while True:
                 if self.tcp_timeout == 0:  # if tcp_timeout is 0, then run until client closes
                     select_inputs = select.select([self.request], [], [])[0]
@@ -115,7 +120,7 @@ def make_modbus_request_handler(mb_timeout=1000, tcp_timeout=5000):
                     self.request.sendall(response)
                 else:
                     break
-
+    bacpypes_debugging(KlassModbusRequestHandler)
     return KlassModbusRequestHandler
 
 
