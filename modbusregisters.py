@@ -94,27 +94,27 @@ def add_meter_instance_to_dicts(meter_map_dict, mb_to_bank_queue, object_bank, m
     except KeyError:
         return False
     mb_port = meter_map_dict.get('modbusPort', 502)
-    val_types = {'holdingRegisters': 3, 'inputRegisters': 4, 'coilBits': 1, 'inputBits': 2}
+    mb_func_dict = {'holdingRegisters': 3, 'inputRegisters': 4, 'coilBits': 1, 'inputBits': 2}
 
     trigger_time = time.time()
     if mb_ip not in unq_ip_last_req:
         unq_ip_last_req[mb_ip] = trigger_time
 
-    for val_type, mb_func in val_types.items():
-        if val_type not in meter_map_dict:  # ('holdingRegisters', 'inputRegisters', 'coilBits', 'inputBits'):
+    for mb_func_str, mb_func in mb_func_dict.items():
+        if mb_func_str not in meter_map_dict:  # ('holdingRegisters', 'inputRegisters', 'coilBits', 'inputBits'):
             continue
 
-        mb_polling_time = meter_map_dict[val_type].get('pollingTime', 30000)
-        mb_request_timeout = meter_map_dict[val_type].get('requestTimeout', 1000)
-        mb_grp_cons_str = meter_map_dict[val_type].get('groupConsecutive', 'yes')
+        mb_polling_time = meter_map_dict[mb_func_str].get('pollingTime', 30000)
+        mb_request_timeout = meter_map_dict[mb_func_str].get('requestTimeout', 1000)
+        mb_grp_cons_str = meter_map_dict[mb_func_str].get('groupConsecutive', 'yes')
         mb_grp_cons = True if mb_grp_cons_str == 'yes' else False
-        mb_grp_gaps_str = meter_map_dict[val_type].get('groupGaps', 'no')
+        mb_grp_gaps_str = meter_map_dict[mb_func_str].get('groupGaps', 'no')
         mb_grp_gaps = True if mb_grp_gaps_str == 'yes' else False
-        mb_word_order = meter_map_dict[val_type].get('wordOrder', 'lsw')
+        mb_word_order = meter_map_dict[mb_func_str].get('wordOrder', 'lsw')
 
         raw_objs = {}
         raw_regs_list = []
-        for register in meter_map_dict[val_type]['registers']:
+        for register in meter_map_dict[mb_func_str]['registers']:
             # don't bother storing points we won't look at
             if register['poll'] == 'no':
                 continue
@@ -140,7 +140,7 @@ def add_meter_instance_to_dicts(meter_map_dict, mb_to_bank_queue, object_bank, m
             raw_regs_list.append([start_reg, last_reg, obj_inst])
 
         # set up dicts for self.register_bank{}
-        func_regs[mb_func] = [meter_map_dict[val_type]['pollingTime'], raw_objs]
+        func_regs[mb_func] = [meter_map_dict[mb_func_str]['pollingTime'], raw_objs]
 
         raw_regs_list.sort()
 
