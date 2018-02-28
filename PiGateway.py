@@ -358,8 +358,9 @@ def main():
                         continue
 
                     dev_name = map_dict.get('deviceName', 'default device name')
-                    dev_desc = map_dict.get('deviceDescription', 'UTILITY; Feeds: BUILDING_EQUATION; From: ELECTRIC_LINES; '
-                                                                 'Serno: SERIAL_NUMBER; IP: METER_IP; MBid: MODBUS_ID')
+                    dev_desc = map_dict.get('deviceDescription', 'UTILITY; Feeds: BUILDING_EQUATION; From: '
+                                                                 'ELECTRIC_LINES; Serno: SERIAL_NUMBER; IP: METER_IP; '
+                                                                 'MBid: MODBUS_ID')
                     dev_map_name = map_dict.get('mapName', 'default map')
                     dev_map_rev = map_dict.get('mapRev', 'default map rev')
                     dev_meter_model = map_dict.get('meterModelName', 'default meter model')
@@ -467,7 +468,8 @@ def main():
         reboot_task = RebootWithNoTraffic(reboot_queue, time_to_check=reboot_check_time)
 
         print('init update objects task')
-        update_objects = modbusbacnetclasses.UpdateObjectsFromModbus(bank_to_bcnt_queue, app_dict, bcnt_obj_update_interval)
+        update_objects = modbusbacnetclasses.UpdateObjectsFromModbus(bank_to_bcnt_queue, app_dict,
+                                                                     bcnt_obj_update_interval)
 
         print('start bank and launcher')
         obj_val_bank.start()
