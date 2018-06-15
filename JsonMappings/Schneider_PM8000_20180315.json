@@ -5,7 +5,7 @@
   "deviceIP":"0.0.0.0",
   "modbusId":1,
   "mapName":"Schneider PM8000",
-  "mapRev":"20180214",
+  "mapRev":"20180315",
   "meterModelName":"Schneider PM8000",
   "modbusPort":502,
   "covSubscribe":"yes",
@@ -673,6 +673,72 @@
         "format":"float",
         "poll":"no",
         "unitsId":98,
+        "covIncrement":0.001,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"real_power_present_demand",
+        "objectDescription":"Peak real demand ",
+        "objectInstance":250,
+        "start":29958,
+        "format":"float",
+        "poll":"no",
+        "unitsId":48,
+        "covIncrement":0.001,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"real_power_peak_demand",
+        "objectDescription":"Present real demand",
+        "objectInstance":251,
+        "start":29954,
+        "format":"float",
+        "poll":"no",
+        "unitsId":48,
+        "covIncrement":0.001,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"reactive_power_present_demand",
+        "objectDescription":"Peak reactive demand ",
+        "objectInstance":252,
+        "start":30014,
+        "format":"float",
+        "poll":"no",
+        "unitsId":48,
+        "covIncrement":0.001,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"reactive_power_peak_demand",
+        "objectDescription":"Present reactive demand",
+        "objectInstance":253,
+        "start":30010,
+        "format":"float",
+        "poll":"no",
+        "unitsId":48,
+        "covIncrement":0.001,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"apparent_power_present_demand",
+        "objectDescription":"Peak apparent demand ",
+        "objectInstance":254,
+        "start":30070,
+        "format":"float",
+        "poll":"no",
+        "unitsId":48,
+        "covIncrement":0.001,
+        "pointScale":[0,1,0,1]
+      },
+      {
+        "objectName":"apparent_power_peak_demand",
+        "objectDescription":"Present apparent demand",
+        "objectInstance":255,
+        "start":30066,
+        "format":"float",
+        "poll":"no",
+        "unitsId":48,
         "covIncrement":0.001,
         "pointScale":[0,1,0,1]
       }
