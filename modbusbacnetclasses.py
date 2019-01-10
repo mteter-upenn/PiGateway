@@ -63,6 +63,14 @@ modbus_ai_obj_def_vals = \
      }
 
 
+def _strftime(cur_time=None, decimal_places=6):
+    if cur_time is None:
+        cur_time = time.time()
+    time_dec = str(round(cur_time - int(cur_time), decimal_places))[1:]
+    time_struct = time.localtime(cur_time)
+    return time.strftime('%X' + time_dec + ' %x', time_struct)
+
+
 class ModbusErrors(Enumerated):
     enumerations = \
         {'noFaultDetected': 0,
@@ -240,9 +248,19 @@ class ModbusAnalogInputObject(Object):
                 prop.WriteProperty(self, modbus_ai_obj_def_vals[propid], direct=True)
 
     def ReadProperty(self, propid, arrayIndex=None):
-        if _debug: ModbusAnalogInputObject._debug('BACnet REQUEST: %s %s', propid, getattr(self, propid))  # might need self._values[propid]
+        # if _debug: ModbusAnalogInputObject._debug('BACnet REQUEST for (%s, %s)  at %s: %s %s',_strftime(decimal_places=3), propid,
+        #                                           getattr(self, propid))  # might need self._values[propid]
+
+        # if _debug: ModbusAnalogInputObject._debug('BACnet REQUEST for (%s, %s), (%s, %s): %s at %s',
+        #                                           self._app._values['objectName'],
+        #                                           self._app._values['objectIdentifier'], self._values['objectName'],
+        #                                           self._values['objectIdentifier'], propid, _strftime(decimal_places=3))
         value = Object.ReadProperty(self, propid, arrayIndex=arrayIndex)
-        if _debug: ModbusAnalogInputObject._debug('value: %s', value)
+        if _debug: ModbusAnalogInputObject._debug('BACnet REQUEST for (%s, %s), (%s, %s), %s= %s at %s',
+                                                  self._app._values['objectName'],
+                                                  self._app._values['objectIdentifier'], self._values['objectName'],
+                                                  self._values['objectIdentifier'], propid, value,
+                                                  _strftime(decimal_places=3))
         return value
 
 
