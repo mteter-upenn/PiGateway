@@ -75,5 +75,10 @@ fi
 # BE SURE TO CHANGE DIRECTORIES IF NEEDED!!!!!
 sudo -u fresep screen -dmS first-screen bash -c 'cd /home/fresep/pckt_caps; exec bash'
 
-sudo -u fresep screen -dmS bacnet-modbus bash -c 'sudo /home/fresep/PiGateway/PiGateway.py --ini /home/fresep/PATH/TO/.ini --debug bacpypes.core.run; cd /home/fresep/PiGateway; exec bash'
-#modbusbacnetclasses.UpdateObjectsFromModbus
+sudo -u fresep screen -dmS bacnet-modbus bash -c 'sudo /home/fresep/PiGateway/PiGateway.py --ini /home/fresep/PATH/TO/.ini --debug modbusregisters.ModbusPollThread modbusbacnetclasses.ModbusAnalogInputObject; cd /home/fresep/PiGateway; exec bash'
+# useful debugs
+# modbusbacnetclasses.ModbusAnalogInputObject - bacnet point, will show when requests are made
+# modbusbacnetclasses.UpdateObjectsFromModbus - shows values transferred from modbus cache to bacnet points
+# modbusregisters.ModbusPollThread - will show more condensed modbus requests and receipts
+# modbusserver - will show more raw modbus requests and receipts
+# bacpypes.core.run -

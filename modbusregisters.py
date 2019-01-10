@@ -21,6 +21,14 @@ class ModbusCommError(Exception):
     pass
 
 
+def _strftime(cur_time=None, decimal_places=6):
+    if cur_time is None:
+        cur_time = time.time()
+    time_dec = str(round(cur_time - int(cur_time), decimal_places))[1:]
+    time_struct = time.localtime(cur_time)
+    return time.strftime('%X' + time_dec + ' %x', time_struct)
+
+
 class ModbusRequestLauncher(threading.Thread):
     # This class takes a dictionary of modbus requests and routinely triggers them to run
     _register_clusters = {}
@@ -467,7 +475,8 @@ class ModbusPollThread(threading.Thread):
             time.sleep(delay)
 
             if _debug:
-                ModbusPollThread._debug('making modbus request for %s %s at %s', self.ip, self.mb_id, time.time())
+                ModbusPollThread._debug('making modbus request for %s %s at %s', self.ip, self.mb_id,
+                                        _strftime(decimal_places=3))
             # print('ip:   ', self.ip)
             # print('id:   ', self.mb_id)
             # print('func: ', self.mb_func)
@@ -480,9 +489,11 @@ class ModbusPollThread(threading.Thread):
                        'mb_resp_time': time.time(), 'obj_list': self.object_list}
             self.tx_queue.put(tx_resp, 0.1)
             if otpt[0] == 'Err':
-                if _debug: ModbusPollThread._debug('got modbus error %s', otpt)
+                if _debug: ModbusPollThread._debug('got modbus error for %s %s at %s: %s', self.ip, self.mb_id,
+                                                   _strftime(decimal_places=3), otpt)
             else:
-                if _debug: ModbusPollThread._debug('got modbus response')
+                if _debug: ModbusPollThread._debug('got modbus response for %s %s at %s', self.ip, self.mb_id,
+                                                   _strftime(decimal_places=3))
             self.currently_running = False
         else:
             if _debug: ModbusPollThread._debug('currently running')
