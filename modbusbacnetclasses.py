@@ -256,10 +256,15 @@ class ModbusAnalogInputObject(Object):
         #                                           self._app._values['objectIdentifier'], self._values['objectName'],
         #                                           self._values['objectIdentifier'], propid, _strftime(decimal_places=3))
         value = Object.ReadProperty(self, propid, arrayIndex=arrayIndex)
+        # if _debug: ModbusAnalogInputObject._debug('BACnet REQUEST for (%s, %s), (%s, %s), %s= %s at %s',
+        #                                           self._app.localDevice._values['objectName'],
+        #                                           self._app.localDevice._values['objectIdentifier'][1],
+        #                                           self._values['objectName'], self._values['objectIdentifier'][1],
+        #                                           propid, value, _strftime(decimal_places=3))
         if _debug: ModbusAnalogInputObject._debug('BACnet REQUEST for (%s, %s), (%s, %s), %s= %s at %s',
-                                                  self._app._values['objectName'],
-                                                  self._app._values['objectIdentifier'], self._values['objectName'],
-                                                  self._values['objectIdentifier'], propid, value,
+                                                  self._app.localDevice.objectName,
+                                                  self._app.localDevice.objectIdentifier[1],
+                                                  self.objectName, self.objectIdentifier[1], propid, value,
                                                   _strftime(decimal_places=3))
         return value
 
