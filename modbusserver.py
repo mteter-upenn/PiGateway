@@ -84,16 +84,19 @@ def make_modbus_request_handler(mb_timeout=1000, tcp_timeout=5000):
 
                     mb_error, transaction_id, slave_id, mb_func, mb_register, mb_num_regs = parse_modbus_request(data)
                     if mb_error != 0:
+                        # if error found in request
                         if _debug: KlassModbusRequestHandler._debug('    - modbus request error: %r', mb_error)
                         response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, slave_id, mb_func + 128,
                                           mb_error[1]])
                     elif 39999 < mb_register < 50000:
+                        # TBD
                         # search for device info, then use that to make direct query of modbus device, modifying for
                         # datatype
                         mb_error = mb_poll.MB_ERR_DICT[2]
                         response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, slave_id, mb_func + 128,
                                           mb_error[1]])
                     elif 49999 < mb_register < 60000:
+                        # TBD
                         # search for device info and grab values direct from bacnet objects (limit to one?)
                         mb_error = mb_poll.MB_ERR_DICT[2]
                         response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, slave_id, mb_func + 128,
