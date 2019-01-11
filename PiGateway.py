@@ -177,6 +177,11 @@ class ModbusCOVVLANApplication(ApplicationIOController, WhoIsIAmServices, ReadWr
         if _debug: ModbusCOVVLANApplication._debug("[%s]confirmation %r", self.vlan_node.address, apdu)
         ApplicationIOController.confirmation(self, apdu, forwarded=forwarded)
 
+    def do_ReadPropertyMultipleRequest(self, apdu, forwarded=False):
+        print('read multiple properties')
+
+        ReadWritePropertyMultipleServices.do_ReadPropertyMultipleRequest(self, apdu, forwarded=forwarded)
+
 
 #
 #   VLANRouter
