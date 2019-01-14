@@ -414,10 +414,9 @@ def main():
                         mb_dev_poll_time = map_dict[val_type].get('pollingTime', 30000)
 
                         for register in map_dict[val_type]['registers']:
-                            if register['poll'] == 'no':
-                                continue
-
                             try:
+                                if register['poll'] == 'no':
+                                    continue
                                 obj_inst = register['objectInstance']
                                 obj_reg_start = register['start']
                                 obj_reg_format = register['format']
