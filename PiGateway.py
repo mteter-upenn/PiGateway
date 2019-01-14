@@ -347,6 +347,7 @@ def main():
         unq_ip_last_resp_dict = {}
         dev_dict = {}
         app_dict = {}
+        sdfsdf = {14:'sdfsdf', 15:'lkjlj'}
 
         for fn in os.listdir(sys.path[0] + '/DeviceList'):
             if fn.endswith('.json'):  # and fn.startswith('DRL'):
