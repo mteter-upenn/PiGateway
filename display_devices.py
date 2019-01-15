@@ -347,7 +347,7 @@ def display_devices(file_prefix=None):
                     hold_reg_ovrvw_list.append([map_dict['deviceInstance'], 0, '', '', '', '', ''])
 
                 if 'inputRegisters' in map_dict:
-                    inpt_map_dict = map_dict['holdingRegisters']
+                    inpt_map_dict = map_dict['inputRegisters']
                     registers_list = inpt_map_dict['registers']
                     num_regs = len(inpt_map_dict['registers'])
                     word_order = inpt_map_dict.get('wordOrder', 'MUST HAVE THIS')
