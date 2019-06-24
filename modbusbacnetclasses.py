@@ -287,6 +287,33 @@ class ModbusLocalDevice(LocalDeviceObject):
 register_object_type(ModbusLocalDevice)
 
 
+# @bacpypes_debugging
+# class TestTask(RecurringTask):
+#     def __init__(self, bank_to_bcnt_queue, app_dict, interval, max_run_time=50):
+#         if _debug: TestTask._debug('init')
+#         RecurringTask.__init__(self, interval)
+#
+#         # self.bank_to_bcnt_queue = bank_to_bcnt_queue
+#         self.app_dict = app_dict
+#         # self.max_run_time = max_run_time / 1000  # set in ms to coincide with interval
+#
+#         # install it
+#         self.install_task()
+#     def process_task(self):
+#         if _debug: TestTask._debug('start recurring task')
+#
+#         bcnt_obj = self.app_dict[4000009].objectIdentifier[('analogInput', 1)]
+#
+#         if _debug: TestTask._debug('\t\t\tnew vals: %s, %s, %s, %s, %s',
+#                                    hex(id(bcnt_obj.reliability)),
+#                                    hex(id(bcnt_obj._values)),
+#                                    bcnt_obj.reliability,
+#                                    bcnt_obj.ReadProperty('reliability'),
+#                                    bcnt_obj.presentValue)
+#
+#         if _debug: TestTask._debug('end recurring task')
+
+
 @bacpypes_debugging
 class UpdateObjectsFromModbus(RecurringTask):
     def __init__(self, bank_to_bcnt_queue, app_dict, interval, max_run_time=50):
@@ -337,7 +364,16 @@ class UpdateObjectsFromModbus(RecurringTask):
 
                     if _debug: UpdateObjectsFromModbus._debug('\t\t%s - %s', obj_inst, bcnt_obj.objectName)
 
-                    if _debug: UpdateObjectsFromModbus._debug('\t\t\t%s', obj_values)
+                    # if _debug: UpdateObjectsFromModbus._debug('\t\t\told vals: %s, %s', bcnt_obj.reliability,
+                    #                                           bcnt_obj.presentValue)
+                    if _debug: UpdateObjectsFromModbus._debug('\t\t\told vals: %s, %s, %s, %s, %s',
+                                                              hex(id(bcnt_obj.reliability)),
+                                                              hex(id(bcnt_obj._values)),
+                                                              bcnt_obj.reliability,
+                                                              bcnt_obj.ReadProperty('reliability'),
+                                                              bcnt_obj.presentValue)
+
+                    if _debug: UpdateObjectsFromModbus._debug('\t\t\t\tinput vals: %s', obj_values)
 
                     if obj_values['error'] != 0:
                         # change_object_prop_if_new(bcnt_obj, 'reliability', 'communicationFailure')
@@ -360,7 +396,19 @@ class UpdateObjectsFromModbus(RecurringTask):
                         # print('modbus comm err done')
                         bcnt_obj.WriteProperty('presentValue', obj_values['value'], direct=True)
                         # print('pv done')
-            if _debug: UpdateObjectsFromModbus._debug('end of loop')
+
+                    if _debug: UpdateObjectsFromModbus._debug('\t\t\tnew vals: %s, %s, %s, %s, %s',
+                                                              hex(id(bcnt_obj.reliability)),
+                                                              hex(id(bcnt_obj._values)),
+                                                              bcnt_obj.reliability,
+                                                              bcnt_obj.ReadProperty('reliability'),
+                                                              bcnt_obj.presentValue)
+                    # if obj_inst[1] == 1:
+                    #     for key, value in bcnt_obj._properties.items():
+                    #         print(key, value, hex(id(value)))
+                    #     for key, value in bcnt_obj._values.items():
+                    #         print(key, value, hex(id(value)))
+            if _debug: UpdateObjectsFromModbus._debug('\tend of loop')
         if _debug: UpdateObjectsFromModbus._debug('end of recurring')
 
 

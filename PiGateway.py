@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
-import os, sys
+import os
+import sys
 import json
 from time import time as _time
 from time import strftime, localtime
@@ -38,8 +39,10 @@ import queue
 try:
     import RPi.GPIO as GPIO
 except ImportError:
+    GPIO = None
     B_RPI_GPIO_EXISTS = False
 except RuntimeError:
+    GPIO = None
     B_RPI_GPIO_EXISTS = False
 else:
     GPIO.setmode(GPIO.BOARD)
@@ -320,169 +323,190 @@ def main():
     bcnt_obj_update_interval = verify_ini_vars(args.ini, 'bacnetobjectupdateinterval', 1000)
     default_cov_inc = verify_ini_vars(args.ini, 'defaultcovincrement', 0.0)
     reboot_check_time = verify_ini_vars(args.ini, 'rebootchecktime', 1800000)
-    modbus_only = verify_ini_vars(args.ini, 'modbusonly', 0)
+    # modbus_only = verify_ini_vars(args.ini, 'modbusonly', 0)
+    modbus_translation = verify_ini_vars(args.ini, 'modbustranslation', 1)
+    modbus_translation = True if modbus_translation == 1 else False
+    modbus_word_order = verify_ini_vars(args.ini, 'modbuswordorder', 0)
+    modbus_word_order = 'lsw' if modbus_word_order == 0 else 'msw'
 
-    if not modbus_only:
-        reboot_queue = queue.Queue()
-        reboot_queue.put_nowait(_time())
+    # if not modbus_only:
+    reboot_queue = queue.Queue()
+    reboot_queue.put_nowait(_time())
 
-        # create the VLAN router, bind it to the local network
-        router = VLANRouter(local_address, local_network, foreign_address, rebootQueue=reboot_queue)
+    # create the VLAN router, bind it to the local network
+    router = VLANRouter(local_address, local_network, foreign_address, rebootQueue=reboot_queue)
 
-        # create a VLAN
-        vlan = Network()
+    # create a VLAN
+    vlan = Network()
 
-        # create a node for the router, address 1 on the VLAN
-        router_node = Node(Address(1))
-        vlan.add_node(router_node)
+    # create a node for the router, address 1 on the VLAN
+    router_node = Node(Address(1))
+    vlan.add_node(router_node)
 
-        # bind the router stack to the vlan network through this node
-        router.nsap.bind(router_node, vlan_network)
+    # bind the router stack to the vlan network through this node
+    router.nsap.bind(router_node, vlan_network)
 
-        mb_to_bank_queue = queue.Queue()
-        bank_to_bcnt_queue = queue.Queue()
+    mb_to_bank_queue = queue.Queue()
+    bank_to_bcnt_queue = queue.Queue()
 
-        object_val_dict = {}
-        mb_req_dict = {}
-        unq_ip_last_resp_dict = {}
-        dev_dict = {}
-        app_dict = {}
-        sdfsdf = {14:'sdfsdf', 15:'lkjlj'}
+    object_val_dict = {}
+    mb_req_dict = {}
+    unq_ip_last_resp_dict = {}
+    dev_dict = {}
+    app_dict = {}
 
-        for fn in os.listdir(sys.path[0] + '/DeviceList'):
-            if fn.endswith('.json'):  # and fn.startswith('DRL'):
-                print(sys.path[0] + '/DeviceList/' + fn)
-                json_raw_str = open(sys.path[0] + '/DeviceList/' + fn, 'r')
-                map_dict = json.load(json_raw_str)
-                good_inst = modbusregisters.add_meter_instance_to_dicts(map_dict, mb_to_bank_queue, object_val_dict,
-                                                                        mb_req_dict, unq_ip_last_resp_dict)
-                json_raw_str.close()
+    # queues for modbus requests of bacnet stored values
+    mbtcp_to_bcnt_queue = queue.Queue()
+    bcnt_to_mbtcp_queue = queue.Queue()
 
-                if good_inst:
-                    try:
-                        dev_inst = map_dict['deviceInstance']
-                        dev_ip = map_dict['deviceIP']
-                        dev_mb_id = map_dict['modbusId']
-                    except KeyError:
-                        _log.debug("json key error for %s", fn)
+    for fn in os.listdir(sys.path[0] + '/DeviceList'):
+        if fn.endswith('.json'):  # and fn.startswith('DRL'):
+            print(sys.path[0] + '/DeviceList/' + fn)
+            json_raw_str = open(sys.path[0] + '/DeviceList/' + fn, 'r')
+            map_dict = json.load(json_raw_str)
+            good_inst = modbusregisters.add_meter_instance_to_dicts(map_dict, mb_to_bank_queue, object_val_dict,
+                                                                    mb_req_dict, unq_ip_last_resp_dict)
+            json_raw_str.close()
+
+            if good_inst:
+                try:
+                    dev_inst = map_dict['deviceInstance']
+                    dev_ip = map_dict['deviceIP']
+                    dev_mb_id = map_dict['modbusId']
+                except KeyError:
+                    _log.debug("json key error for %s", fn)
+                    continue
+
+                dev_name = map_dict.get('deviceName', 'default device name')
+                dev_desc = map_dict.get('deviceDescription', 'UTILITY; Feeds: BUILDING_EQUATION; From: '
+                                                             'ELECTRIC_LINES; Serno: SERIAL_NUMBER; IP: METER_IP; '
+                                                             'MBid: MODBUS_ID')
+                dev_map_name = map_dict.get('mapName', 'default map')
+                dev_map_rev = map_dict.get('mapRev', 'default map rev')
+                dev_meter_model = map_dict.get('meterModelName', 'default meter model')
+                dev_mb_port = map_dict.get('modbusPort', 502)
+                dev_cov = map_dict.get('covSubscribe', 'no')
+
+                dev_dict[dev_inst] = modbusbacnetclasses.ModbusLocalDevice(
+                    objectName=dev_name,
+                    objectIdentifier=('device', dev_inst),
+                    description=dev_desc,
+                    maxApduLengthAccepted=max_apdu_len,
+                    segmentationSupported=segmentation_support,
+                    vendorIdentifier=vendor_id,
+                    deviceIp=dev_ip,
+                    modbusId=dev_mb_id,
+                    modbusMapName=dev_map_name,
+                    modbusMapRev=dev_map_rev,
+                    deviceModelName=dev_meter_model,
+                    modbusPort=dev_mb_port,
+                )
+
+                if dev_cov == 'yes':
+                    app_dict[dev_inst] = ModbusCOVVLANApplication(dev_dict[dev_inst],
+                                                                  ip_to_bcnt_address(dev_ip, dev_mb_id))
+                else:
+                    app_dict[dev_inst] = ModbusVLANApplication(dev_dict[dev_inst],
+                                                               ip_to_bcnt_address(dev_ip, dev_mb_id))
+                vlan.add_node(app_dict[dev_inst].vlan_node)
+
+                services_supported = app_dict[dev_inst].get_services_supported()
+                dev_dict[dev_inst].protocolServicesSupported = services_supported.value
+
+                val_types = {'holdingRegisters': 3, 'inputRegisters': 4, 'coilBits': 1, 'inputBits': 2}
+
+                # create objects for device
+                for val_type, mb_func in val_types.items():
+                    if val_type not in map_dict or val_type not in ['holdingRegisters', 'inputRegisters']:
                         continue
 
-                    dev_name = map_dict.get('deviceName', 'default device name')
-                    dev_desc = map_dict.get('deviceDescription', 'UTILITY; Feeds: BUILDING_EQUATION; From: '
-                                                                 'ELECTRIC_LINES; Serno: SERIAL_NUMBER; IP: METER_IP; '
-                                                                 'MBid: MODBUS_ID')
-                    dev_map_name = map_dict.get('mapName', 'default map')
-                    dev_map_rev = map_dict.get('mapRev', 'default map rev')
-                    dev_meter_model = map_dict.get('meterModelName', 'default meter model')
-                    dev_mb_port = map_dict.get('modbusPort', 502)
-                    dev_cov = map_dict.get('covSubscribe', 'no')
+                    mb_dev_wo = map_dict[val_type].get('wordOrder', 'lsw')
+                    mb_dev_poll_time = map_dict[val_type].get('pollingTime', 30000)
 
-                    dev_dict[dev_inst] = modbusbacnetclasses.ModbusLocalDevice(
-                        objectName=dev_name,
-                        objectIdentifier=('device', dev_inst),
-                        description=dev_desc,
-                        maxApduLengthAccepted=max_apdu_len,
-                        segmentationSupported=segmentation_support,
-                        vendorIdentifier=vendor_id,
-                        deviceIp=dev_ip,
-                        modbusId=dev_mb_id,
-                        modbusMapName=dev_map_name,
-                        modbusMapRev=dev_map_rev,
-                        deviceModelName=dev_meter_model,
-                        modbusPort=dev_mb_port,
-                    )
-
-                    if dev_cov == 'yes':
-                        app_dict[dev_inst] = ModbusCOVVLANApplication(dev_dict[dev_inst],
-                                                                      ip_to_bcnt_address(dev_ip, dev_mb_id))
-                    else:
-                        app_dict[dev_inst] = ModbusVLANApplication(dev_dict[dev_inst],
-                                                                   ip_to_bcnt_address(dev_ip, dev_mb_id))
-                    vlan.add_node(app_dict[dev_inst].vlan_node)
-
-                    services_supported = app_dict[dev_inst].get_services_supported()
-                    dev_dict[dev_inst].protocolServicesSupported = services_supported.value
-
-                    val_types = {'holdingRegisters': 3, 'inputRegisters': 4, 'coilBits': 1, 'inputBits': 2}
-
-                    # create objects for device
-                    for val_type, mb_func in val_types.items():
-                        if val_type not in map_dict or val_type not in ['holdingRegisters', 'inputRegisters']:
+                    for register in map_dict[val_type]['registers']:
+                        try:
+                            if register['poll'] == 'no':
+                                continue
+                            obj_inst = register['objectInstance']
+                            obj_reg_start = register['start']
+                            obj_reg_format = register['format']
+                        except KeyError:
                             continue
 
-                        mb_dev_wo = map_dict[val_type].get('wordOrder', 'lsw')
-                        mb_dev_poll_time = map_dict[val_type].get('pollingTime', 30000)
+                        obj_name = register.get('objectName', 'default object name')
+                        obj_description = register.get('objectDescription', 'default object description')
+                        obj_cov_inc = register.get('covIncrement', default_cov_inc)
 
-                        for register in map_dict[val_type]['registers']:
-                            try:
-                                if register['poll'] == 'no':
-                                    continue
-                                obj_inst = register['objectInstance']
-                                obj_reg_start = register['start']
-                                obj_reg_format = register['format']
-                            except KeyError:
-                                continue
+                        if obj_reg_format in modbusregisters.one_register_formats:
+                            obj_num_regs = 1
+                        elif obj_reg_format in modbusregisters.two_register_formats:
+                            obj_num_regs = 2
+                        elif obj_reg_format in modbusregisters.three_register_formats:
+                            obj_num_regs = 3
+                        elif obj_reg_format in modbusregisters.four_register_formats:
+                            obj_num_regs = 4
+                        else:
+                            continue
+                        obj_units_id = register.get('unitsId', 95)  # 95 is noUnits
+                        obj_pt_scale = register.get('pointScale', [0, 1, 0, 1])
+                        obj_eq_m = (obj_pt_scale[3] - obj_pt_scale[2]) / (obj_pt_scale[1] - obj_pt_scale[0])
+                        obj_eq_b = obj_pt_scale[2] - obj_eq_m * obj_pt_scale[0]
 
-                            obj_name = register.get('objectName', 'default object name')
-                            obj_description = register.get('objectDescription', 'default object description')
-                            obj_cov_inc = register.get('covIncrement', default_cov_inc)
+                        maio = modbusbacnetclasses.ModbusAnalogInputObject(
+                            objectIdentifier=('analogInput', obj_inst),
+                            objectName=obj_name,
+                            description=obj_description,
+                            modbusFunction=mb_func,
+                            registerStart=obj_reg_start,
+                            numberOfRegisters=obj_num_regs,
+                            registerFormat=obj_reg_format,
+                            wordOrder=mb_dev_wo,
+                            # modbusScaling=[obj_eq_m, obj_eq_b],
+                            modbusScaling=ArrayOf(Real)([obj_eq_m, obj_eq_b]),
+                            units=obj_units_id,
+                            covIncrement=obj_cov_inc,
+                            updateInterval=int(mb_dev_poll_time / 10.0),
+                            resolution=0.0,
+                            reliability='communicationFailure',
+                            statusFlags=[0, 1, 0, 0],
+                            modbusCommErr='noTcpConnection',
+                            eventState='normal',
+                            outOfService=False,
+                        )
 
-                            if obj_reg_format in modbusregisters.one_register_formats:
-                                obj_num_regs = 1
-                            elif obj_reg_format in modbusregisters.two_register_formats:
-                                obj_num_regs = 2
-                            elif obj_reg_format in modbusregisters.three_register_formats:
-                                obj_num_regs = 3
-                            elif obj_reg_format in modbusregisters.four_register_formats:
-                                obj_num_regs = 4
-                            else:
-                                continue
-                            obj_units_id = register.get('unitsId', 95)  # 95 is noUnits
-                            obj_pt_scale = register.get('pointScale', [0, 1, 0, 1])
-                            obj_eq_m = (obj_pt_scale[3] - obj_pt_scale[2]) / (obj_pt_scale[1] - obj_pt_scale[0])
-                            obj_eq_b = obj_pt_scale[2] - obj_eq_m * obj_pt_scale[0]
+                        # _log.debug("    - maio: %r", maio)
+                        app_dict[dev_inst].add_object(maio)
 
-                            maio = modbusbacnetclasses.ModbusAnalogInputObject(
-                                objectIdentifier=('analogInput', obj_inst),
-                                objectName=obj_name,
-                                description=obj_description,
-                                modbusFunction=mb_func,
-                                registerStart=obj_reg_start,
-                                numberOfRegisters=obj_num_regs,
-                                registerFormat=obj_reg_format,
-                                wordOrder=mb_dev_wo,
-                                # modbusScaling=[obj_eq_m, obj_eq_b],
-                                modbusScaling=ArrayOf(Real)([obj_eq_m, obj_eq_b]),
-                                units=obj_units_id,
-                                covIncrement=obj_cov_inc,
-                                updateInterval=int(mb_dev_poll_time / 10.0),
-                                resolution=0.0,
-                                reliability='communicationFailure',
-                                statusFlags=[0, 1, 0, 0],
-                                modbusCommErr='noTcpConnection',
-                                eventState='normal',
-                                outOfService=False,
-                            )
+                        # strd_pt = app_dict[dev_inst].objectIdentifier[('analogInput', obj_inst)]
+                        # print(obj_name, obj_inst, ':',
+                        #       hex(id(strd_pt.reliability)),
+                        #       hex(id(strd_pt._values)),
+                        #       strd_pt.ReadProperty('reliability'),
+                        #       strd_pt._values['reliability'],
+                        #       hex(id(strd_pt._values['reliability'])),
+                        #       hex(id(strd_pt._properties['reliability'])))
 
-                            # _log.debug("    - maio: %r", maio)
-                            app_dict[dev_inst].add_object(maio)
+    print('init modbus bank')
+    obj_val_bank = modbusregisters.ModbusFormatAndStorage(mb_to_bank_queue, bank_to_bcnt_queue, object_val_dict)
 
-        print('init modbus bank')
-        obj_val_bank = modbusregisters.ModbusFormatAndStorage(mb_to_bank_queue, bank_to_bcnt_queue, object_val_dict)
+    print('init modbus req launcher')
+    mb_req_launcher = modbusregisters.ModbusRequestLauncher(mb_req_dict, unq_ip_last_resp_dict)
 
-        print('init modbus req launcher')
-        mb_req_launcher = modbusregisters.ModbusRequestLauncher(mb_req_dict, unq_ip_last_resp_dict)
+    print('init check for reboot')
+    reboot_task = RebootWithNoTraffic(reboot_queue, time_to_check=reboot_check_time)
 
-        print('init check for reboot')
-        reboot_task = RebootWithNoTraffic(reboot_queue, time_to_check=reboot_check_time)
+    print('init update bacnet objects task')
+    # test_objects = modbusbacnetclasses.TestTask(bank_to_bcnt_queue, app_dict, 1000)
 
-        print('init update objects task')
-        update_objects = modbusbacnetclasses.UpdateObjectsFromModbus(bank_to_bcnt_queue, app_dict,
-                                                                     bcnt_obj_update_interval)
+    update_objects = modbusbacnetclasses.UpdateObjectsFromModbus(bank_to_bcnt_queue, app_dict,
+                                                                 bcnt_obj_update_interval)
 
-        print('start bank and launcher')
-        obj_val_bank.start()
-        mb_req_launcher.start()
+    print('init modbus response with bacnet vals task')
+    mbtcp_bcnt_task = modbusserver.HandleModbusBACnetRequests(mbtcp_to_bcnt_queue, bcnt_to_mbtcp_queue, app_dict, 50)
+
+    print('start bank and launcher')
+    obj_val_bank.start()
+    mb_req_launcher.start()
     # end if not modbus only
 
     if B_RPI_GPIO_EXISTS:
@@ -494,8 +518,15 @@ def main():
     # set up modbus server
     socketserver.TCPServer.allow_reuse_address = True
 
-    ModbusRequestHandler = modbusserver.make_modbus_request_handler(mb_timeout=mb_timeout, tcp_timeout=mbtcp_timeout)
-    modbus_fork_server = modbusserver.ForkedTCPServer((str(args.ini.localip).split('/')[0], 502), ModbusRequestHandler)
+    # print('pigw', hex(id(app_dict)))
+    ModbusRequestHandler = modbusserver.make_modbus_request_handler(app_dict,
+                                                                    mb_timeout=mb_timeout,
+                                                                    tcp_timeout=mbtcp_timeout,
+                                                                    mb_translation=modbus_translation,
+                                                                    mb_wo=modbus_word_order)
+
+    modbus_fork_server = modbusserver.ForkedTCPServer(mbtcp_to_bcnt_queue, bcnt_to_mbtcp_queue,
+                                                      (str(args.ini.localip).split('/')[0], 502), ModbusRequestHandler)
 
     mb_server_fork = Process(target=modbus_fork_server.serve_forever)
     mb_server_fork.daemon = True

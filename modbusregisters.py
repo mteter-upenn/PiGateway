@@ -57,10 +57,11 @@ class ModbusRequestLauncher(threading.Thread):
             for reg_clstr, clstr_val in self._register_clusters.items():
                 cur_time = time.time()
                 if clstr_val[1] < cur_time:
+                    # if the ip (or serial connection) was run recently, then wait for time
                     new_expected_run_time = max(cur_time, self._unq_ip_last_req[clstr_val[3]] + 0.5)
                     self._unq_ip_last_req[clstr_val[3]] = new_expected_run_time
-                    clstr_val[1] = new_expected_run_time + clstr_val[2] / 1000.0
-                    clstr_val[0].run(delay=max(new_expected_run_time - cur_time, 0))
+                    clstr_val[1] = new_expected_run_time + clstr_val[2] / 1000.0  # trigger time
+                    clstr_val[0].run(delay=max(new_expected_run_time - cur_time, 0))  # ModbusPollThread run command
 
 
 def add_meter_instance_to_dicts(meter_map_dict, mb_to_bank_queue, object_bank, modbus_requests, unq_ip_last_req):
