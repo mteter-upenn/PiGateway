@@ -47,8 +47,7 @@ def parse_modbus_request(message):
 
 
 
-def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000,
-                                mb_translation=True, mb_wo='lsw'):
+def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_translation=True):
     # @bacpypes_debugging
     class KlassModbusRequestHandler(socketserver.BaseRequestHandler):  # , object):
         def __init__(self, *args, **kwargs):
@@ -61,7 +60,7 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000,
             self.mb_timeout = mb_timeout
             self.tcp_timeout = tcp_timeout / 1000.0
             self.mb_translation = mb_translation
-            self.mb_wo = mb_wo
+            # self.mb_wo = mb_wo
             # print('init', hex(id(app_dict)))
             # print('init', hex(id(self.app_dict)))
             super(KlassModbusRequestHandler, self).__init__(*args, **kwargs)
@@ -148,12 +147,12 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000,
         def _bacnet_request(self, dev_inst, transaction_id, virt_id, mb_func, mb_register, mb_num_regs):
             if mb_num_regs == 2:
                 for obj_inst in self.app_dict[dev_inst].objectIdentifier:
-                    strd_pt = self.app_dict[dev_inst].objectIdentifier[obj_inst]
+                    bcnt_pt = self.app_dict[dev_inst].objectIdentifier[obj_inst]
 
-                    if strd_pt.objectIdentifier[0] == 'device':
+                    if bcnt_pt.objectIdentifier[0] == 'device':
                         continue
 
-                    if strd_pt.registerStart == (mb_register - 39999):
+                    if bcnt_pt.registerStart == (mb_register - 39999):
                         bn_req = {'dev_inst': dev_inst, 'obj_inst': obj_inst}
                         self.server.mbtcp_to_bcnt_queue.put(bn_req, timeout=0.1)
 
@@ -185,7 +184,7 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000,
                             val = bytearray(struct.pack('>f', bn_resp['presentValue']))  # > forces big endian
                             # print('pv:', bn_resp['presentValue'], ', ba:', val.hex(), len(val), bytes(val).hex())
 
-                            if self.mb_wo == 'msw':
+                            if self.app_dict[dev_inst].localDevice.meterRespWordOrder == 'msw':
                                 # print('msw', val.hex(), bytes(val).hex())
                                 pass  # nothing to do here
                             else:

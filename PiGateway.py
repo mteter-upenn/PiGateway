@@ -327,8 +327,8 @@ def main():
     # modbus_only = verify_ini_vars(args.ini, 'modbusonly', 0)
     modbus_translation = verify_ini_vars(args.ini, 'modbustranslation', 1)
     modbus_translation = True if modbus_translation == 1 else False
-    modbus_word_order = verify_ini_vars(args.ini, 'modbuswordorder', 0)
-    modbus_word_order = 'lsw' if modbus_word_order == 0 else 'msw'
+    # modbus_word_order = verify_ini_vars(args.ini, 'modbuswordorder', 0)
+    # modbus_word_order = 'lsw' if modbus_word_order == 0 else 'msw'
 
     # if not modbus_only:
     reboot_queue = queue.Queue()
@@ -387,6 +387,7 @@ def main():
                 dev_meter_model = map_dict.get('meterModelName', 'default meter model')
                 dev_mb_port = map_dict.get('modbusPort', 502)
                 dev_cov = map_dict.get('covSubscribe', 'no')
+                dev_mb_resp_word_order = map_dict.get('meterRespWordOrder', 'lsw')
 
                 dev_dict[dev_inst] = modbusbacnetclasses.ModbusLocalDevice(
                     objectName=dev_name,
@@ -401,6 +402,7 @@ def main():
                     modbusMapRev=dev_map_rev,
                     deviceModelName=dev_meter_model,
                     modbusPort=dev_mb_port,
+                    meterRespWordOrder=dev_mb_resp_word_order,
                 )
 
                 if dev_cov == 'yes':
@@ -510,8 +512,7 @@ def main():
 
     ModbusRequestHandler = modbusserver.make_modbus_request_handler(app_dict, mb_timeout=mb_timeout,
                                                                     tcp_timeout=mbtcp_timeout,
-                                                                    mb_translation=modbus_translation,
-                                                                    mb_wo=modbus_word_order)
+                                                                    mb_translation=modbus_translation)
 
     modbus_fork_server = modbusserver.ForkedTCPServer(mbtcp_to_bcnt_queue, bcnt_to_mbtcp_queue,
                                                       (str(args.ini.localip).split('/')[0], 502), ModbusRequestHandler)

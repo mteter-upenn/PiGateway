@@ -1,5 +1,8 @@
 __pycache__/
 
+# don't keep compiled python files
+*.pyc
+
 # folder for specific meters to be held here, these should be context specific
 #DeviceList/
 

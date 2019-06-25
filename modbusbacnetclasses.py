@@ -35,6 +35,7 @@ PropertyIdentifier.enumerations['modbusMapRev'] = 3000009
 PropertyIdentifier.enumerations['deviceModelName'] = 3000010
 PropertyIdentifier.enumerations['modbusPort'] = 3000011
 PropertyIdentifier.enumerations['modbusCommErr'] = 3000012
+PropertyIdentifier.enumerations['meterRespWordOrder'] = 3000013
 PropertyIdentifier.enumerations['profileLocation'] = 485
 
 # this will be used to ensure all properties have been given values- THIS IS NOT AN EXCUSE TO NOT GIVE VALUES!
@@ -261,6 +262,7 @@ class ModbusLocalDevice(LocalDeviceObject):
         ReadableProperty('deviceModelName', CharacterString),
         ReadableProperty('modbusPort', Integer),
         # ReadableProperty('wordOrder', CharacterString)
+        ReadableProperty('meterRespWordOrder', CharacterString),
     ]
 
 register_object_type(ModbusLocalDevice)

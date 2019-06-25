@@ -9,6 +9,7 @@
   "meterModelName":"Eaton PXM 2000",
   "modbusPort":502,
   "covSubscribe":"yes",
+  "meterRespWordOrder":"lsw",
   "holdingRegisters": {
     "pollingTime":30000,
     "requestTimeout":1000,

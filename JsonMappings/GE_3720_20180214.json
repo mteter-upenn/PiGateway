@@ -9,6 +9,7 @@
   "meterModelName":"GE 3720",
   "modbusPort":502,
   "covSubscribe":"yes",
+  "meterRespWordOrder":"lsw",
   "holdingRegisters": {
     "pollingTime":30000,
     "requestTimeout":1000,
