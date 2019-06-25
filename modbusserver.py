@@ -167,10 +167,13 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000,
                                 continue
 
                             if (bn_resp['dev_inst'], bn_resp['obj_inst']) == (bn_req['dev_inst'], bn_req['obj_inst']):
-                                # print('bn_resp', bn_resp)
+                                # found correct response
                                 break
                             else:
-                                self.server.bcnt_to_mbtcp_queue.put(bn_resp, timeout=0.1)
+                                if _time() - bn_resp['q_timestamp'] < 30:
+                                    # if the response was put in the queue within last 30 seconds, then put back in the
+                                    #     queue, otherwise, let it go
+                                    self.server.bcnt_to_mbtcp_queue.put(bn_resp, timeout=0.1)
                                 bn_resp = None
                                 # print('wrong BACnet response found!')
 
@@ -257,10 +260,6 @@ class HandleModbusBACnetRequests(RecurringTask):
     def process_task(self):
         start_time = _time()
         # if _debug: HandleModbusBACnetRequests._debug('start recurring task')
-
-        # while (not self.bcnt_to_mbtcp_queue.empty()) and (_time() - start_time < self.max_run_time):
-        #     # check timestamps and permanently remove old requests
-        #     pass
 
         while (not self.mbtcp_to_bcnt_queue.empty()) and (_time() - start_time < self.max_run_time):
             # if not self.bank_to_bcnt_queue.empty():
