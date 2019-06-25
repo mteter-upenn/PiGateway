@@ -104,13 +104,13 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000,
                         if _debug: KlassModbusRequestHandler._debug('    - modbus request error: %r', mb_error)
                         response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id, mb_func + 128,
                                           mb_error[1]])
-                    elif dev_inst != 0 and self.mb_translation and 39999 < mb_register < 50000:
+                    elif dev_inst != 0 and self.mb_translation and 19999 < mb_register < 40000:
                         # TBD
                         # search for device info, then use that to make direct query of modbus device, modifying for
                         # datatype
                         response = self._convert_req_float(self, mb_ip, transaction_id, virt_id, slave_id, mb_func,
                                                            mb_register, mb_num_regs)
-                    elif dev_inst != 0 and self.mb_translation and 49999 < mb_register < 60000:
+                    elif dev_inst != 0 and self.mb_translation and 39999 < mb_register < 60000:
                         # search for device info and grab values direct from bacnet objects (limit to one?)
                         response = self._bacnet_request(dev_inst, transaction_id, virt_id, mb_func, mb_register,
                                                         mb_num_regs)
@@ -153,7 +153,7 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000,
                     if strd_pt.objectIdentifier[0] == 'device':
                         continue
 
-                    if strd_pt.registerStart == (mb_register - 49999):
+                    if strd_pt.registerStart == (mb_register - 39999):
                         bn_req = {'dev_inst': dev_inst, 'obj_inst': obj_inst}
                         self.server.mbtcp_to_bcnt_queue.put(bn_req, timeout=0.1)
 
