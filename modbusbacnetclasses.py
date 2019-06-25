@@ -214,30 +214,10 @@ class ModbusAnalogInputObject(Object):
          ReadableProperty('modbusScaling', ArrayOf(Real)),
          ReadableProperty('modbusCommErr', ModbusErrors)
          ]
-# class ModbusAnalogInputObject(AnalogInputObject):
-    # properties = [
-    #     # ModbusValueProperty('presentValue'),
-    #     ReadableProperty('modbusFunction', Integer),
-    #     ReadableProperty('registerStart', Integer),
-    #     ReadableProperty('numberOfRegisters', Integer),
-    #     ReadableProperty('registerFormat', CharacterString),
-    #     ReadableProperty('wordOrder', CharacterString),
-    #     ReadableProperty('modbusScaling', ArrayOf(Real)),
-    #     # ReadableProperty('modbusCommErr', Integer)
-    #     ReadableProperty('modbusCommErr', ModbusErrors)
-    # ]
 
-    # def __init__(self, parent_device_inst, register_reader, rx_queue, **kwargs):
     def __init__(self, **kwargs):
         if _debug: ModbusAnalogInputObject._debug("__init__ %r", kwargs)
         Object.__init__(self, **kwargs)
-
-        # self.reliability = 'communicationFailure'
-        # # self.statusFlags['fault'] = 1
-        # # self.modbusCommErr = 19
-        # self.modbusCommErr = 'noTcpConnection'
-        # self.outOfService = False
-        # self.eventState = 'normal'
 
         # set unassigned properties to default values
         for propid, prop in self._properties.items():
@@ -268,7 +248,6 @@ class ModbusAnalogInputObject(Object):
                                                   _strftime(decimal_places=3))
         return value
 
-
 register_object_type(ModbusAnalogInputObject)
 
 
@@ -285,33 +264,6 @@ class ModbusLocalDevice(LocalDeviceObject):
     ]
 
 register_object_type(ModbusLocalDevice)
-
-
-# @bacpypes_debugging
-# class TestTask(RecurringTask):
-#     def __init__(self, bank_to_bcnt_queue, app_dict, interval, max_run_time=50):
-#         if _debug: TestTask._debug('init')
-#         RecurringTask.__init__(self, interval)
-#
-#         # self.bank_to_bcnt_queue = bank_to_bcnt_queue
-#         self.app_dict = app_dict
-#         # self.max_run_time = max_run_time / 1000  # set in ms to coincide with interval
-#
-#         # install it
-#         self.install_task()
-#     def process_task(self):
-#         if _debug: TestTask._debug('start recurring task')
-#
-#         bcnt_obj = self.app_dict[4000009].objectIdentifier[('analogInput', 1)]
-#
-#         if _debug: TestTask._debug('\t\t\tnew vals: %s, %s, %s, %s, %s',
-#                                    hex(id(bcnt_obj.reliability)),
-#                                    hex(id(bcnt_obj._values)),
-#                                    bcnt_obj.reliability,
-#                                    bcnt_obj.ReadProperty('reliability'),
-#                                    bcnt_obj.presentValue)
-#
-#         if _debug: TestTask._debug('end recurring task')
 
 
 @bacpypes_debugging
@@ -362,52 +314,26 @@ class UpdateObjectsFromModbus(RecurringTask):
 
                     bcnt_obj = self.app_dict[dev_inst].objectIdentifier[obj_inst]
 
-                    if _debug: UpdateObjectsFromModbus._debug('\t\t%s - %s', obj_inst, bcnt_obj.objectName)
-
-                    # if _debug: UpdateObjectsFromModbus._debug('\t\t\told vals: %s, %s', bcnt_obj.reliability,
-                    #                                           bcnt_obj.presentValue)
-                    if _debug: UpdateObjectsFromModbus._debug('\t\t\told vals: %s, %s, %s, %s, %s',
-                                                              hex(id(bcnt_obj.reliability)),
-                                                              hex(id(bcnt_obj._values)),
-                                                              bcnt_obj.reliability,
-                                                              bcnt_obj.ReadProperty('reliability'),
-                                                              bcnt_obj.presentValue)
-
-                    if _debug: UpdateObjectsFromModbus._debug('\t\t\t\tinput vals: %s', obj_values)
+                    if _debug:
+                        UpdateObjectsFromModbus._debug('\t\t%s - %s', obj_inst, bcnt_obj.objectName)
+                        UpdateObjectsFromModbus._debug('\t\t\told vals: %s, %s', bcnt_obj.reliability,
+                                                       bcnt_obj.presentValue)
+                        UpdateObjectsFromModbus._debug('\t\t\t\tinput vals: error: %s, value: %s', obj_values['error'],
+                                                       obj_values['value'])
 
                     if obj_values['error'] != 0:
-                        # change_object_prop_if_new(bcnt_obj, 'reliability', 'communicationFailure')
-                        # change_object_prop_if_new(bcnt_obj, 'statusFlags', 1, arr_idx='fault')
-                        # change_object_prop_if_new(bcnt_obj, 'modbusCommErr', obj_values['error'])
                         bcnt_obj.WriteProperty('reliability', 'communicationFailure', direct=True)
                         change_object_prop_if_new(bcnt_obj, 'statusFlags', 0, arr_idx='fault')
                         bcnt_obj.WriteProperty('modbusCommErr', obj_values['error'], direct=True)
                         bcnt_obj.WriteProperty('presentValue', 0.0, direct=True)
                     else:
-                        # change_object_prop_if_new(bcnt_obj, 'reliability', 'noFaultDetected')
-                        # change_object_prop_if_new(bcnt_obj, 'statusFlags', 0, arr_idx='fault')
-                        # change_object_prop_if_new(bcnt_obj, 'modbusCommErr', 'noFaultDetected')
-                        # bcnt_obj._values['presentValue'] = obj_values['value']
                         bcnt_obj.WriteProperty('reliability', 'noFaultDetected', direct=True)
-                        # print('reliability done')
                         change_object_prop_if_new(bcnt_obj, 'statusFlags', 0, arr_idx='fault')
-                        # print('status flags done')
                         bcnt_obj.WriteProperty('modbusCommErr', 'noFaultDetected', direct=True)
-                        # print('modbus comm err done')
                         bcnt_obj.WriteProperty('presentValue', obj_values['value'], direct=True)
-                        # print('pv done')
 
-                    if _debug: UpdateObjectsFromModbus._debug('\t\t\tnew vals: %s, %s, %s, %s, %s',
-                                                              hex(id(bcnt_obj.reliability)),
-                                                              hex(id(bcnt_obj._values)),
-                                                              bcnt_obj.reliability,
-                                                              bcnt_obj.ReadProperty('reliability'),
+                    if _debug: UpdateObjectsFromModbus._debug('\t\t\tnew vals: %s, %s', bcnt_obj.reliability,
                                                               bcnt_obj.presentValue)
-                    # if obj_inst[1] == 1:
-                    #     for key, value in bcnt_obj._properties.items():
-                    #         print(key, value, hex(id(value)))
-                    #     for key, value in bcnt_obj._values.items():
-                    #         print(key, value, hex(id(value)))
             if _debug: UpdateObjectsFromModbus._debug('\tend of loop')
         if _debug: UpdateObjectsFromModbus._debug('end of recurring')
 
@@ -417,8 +343,6 @@ def change_object_prop_if_new(bcnt_obj, propid, obj_val, arr_idx=None):
         if bcnt_obj.ReadProperty(propid) != obj_val:
             bcnt_obj.WriteProperty(propid, obj_val, direct=True)
     else:
-        # print(bcnt_obj._properties[propid].datatype)
-        # print(issubclass(bcnt_obj._properties[propid].datatype, BitString))
         if issubclass(bcnt_obj._properties[propid].datatype, BitString):  # need to split bitstring in if because
             # library will only use arrayIndex for objects with the Array() class as a parent
             # values are not always stored as their datatype, merely as an acceptable input.  Ex: StatusFlags are

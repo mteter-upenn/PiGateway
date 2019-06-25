@@ -1,5 +1,6 @@
 import socketserver
-import multiprocessing
+# import multiprocessing
+import struct
 import mbpy.mb_poll as mb_poll
 import select
 import socket
@@ -107,96 +108,17 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000,
                         # TBD
                         # search for device info, then use that to make direct query of modbus device, modifying for
                         # datatype
-                        mb_error = mb_poll.MB_ERR_DICT[2]
-                        response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id, mb_func + 128,
-                                          mb_error[1]])
+                        response = self._convert_req_float(self, mb_ip, transaction_id, virt_id, slave_id, mb_func,
+                                                           mb_register, mb_num_regs)
                     elif dev_inst != 0 and self.mb_translation and 49999 < mb_register < 60000:
-                        # TBD
                         # search for device info and grab values direct from bacnet objects (limit to one?)
-                        if mb_num_regs == 2:
-                            for pt_id in self.app_dict[dev_inst].objectIdentifier:
-                                strd_pt = self.app_dict[dev_inst].objectIdentifier[pt_id]
-
-                                if strd_pt.objectIdentifier[0] == 'device':
-                                    continue
-                                if strd_pt.registerStart == (mb_register - 49999):
-                                    bn_req = {'dev_inst': dev_inst, 'obj_inst': pt_id}
-                                    self.server.mbtcp_to_bcnt_queue.put(bn_req, timeout=0.1)
-
-                                    print('added to queue', dev_inst, pt_id)
-                                    start_time = _time()
-                                    bn_resp = None
-                                    while (_time() - start_time) < (self.mb_timeout / 1000):
-                                        try:
-                                            bn_resp = self.server.bcnt_to_mbtcp_queue.get_nowait()
-                                        except Empty:
-                                            continue
-
-                                        if (bn_resp['dev_inst'], bn_resp['obj_inst']) == \
-                                                (bn_req['dev_inst'], bn_req['obj_inst']):
-                                            print('bn_resp', bn_resp)
-                                            break
-                                        else:
-                                            self.server.bcnt_to_mbtcp_queue.put(bn_resp, timeout=0.1)
-                                            bn_resp = None
-                                            print('wrong BACnet response found!')
-
-                                    if bn_resp is None:
-                                        print('no bacnet response found', self.server.mbtcp_to_bcnt_queue.empty())
-                                        mb_error = mb_poll.MB_ERR_DICT[11]
-                                        response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id,
-                                                          mb_func + 128, mb_error[1]])
-                                    elif bn_resp['reliability'] == 'noFaultDetected':
-                                        print('good find')
-                                        mb_error = mb_poll.MB_ERR_DICT[3]
-                                        response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id,
-                                                          mb_func + 128, mb_error[1]])
-                                    else:
-                                        print('reliability problem', hex(id(strd_pt.reliability)),
-                                              hex(id(strd_pt._values)),
-                                              bn_resp['reliability'],
-                                              strd_pt._values['reliability'],
-                                              hex(id(strd_pt._values['reliability'])),
-                                              hex(id(strd_pt._properties['reliability'])))
-                                        mb_error = mb_poll.MB_ERR_DICT[2]
-                                        response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id,
-                                                          mb_func + 128, mb_error[1]])
-                                    break
-                            else:
-                                print('no such register found', mb_register - 49999)
-                                mb_error = mb_poll.MB_ERR_DICT[2]
-                                response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id,
-                                                  mb_func + 128, mb_error[1]])
-                        else:
-                            print('wrong number of regs requested')
-                            mb_error = mb_poll.MB_ERR_DICT[2]
-                            response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id, mb_func + 128,
-                                              mb_error[1]])
+                        response = self._bacnet_request(dev_inst, transaction_id, virt_id, mb_func, mb_register,
+                                                        mb_num_regs)
                     else:
-                        # assume serial for now!
-                        if _debug: KlassModbusRequestHandler._debug('    - modbus request id: %r, slave: %r, func: %r, '
-                                                                    'register: %r, num_regs: %r', transaction_id,
-                                                                    slave_id, mb_func, mb_register, mb_num_regs)
-                        raw_byte_return = mb_poll.modbus_poller(mb_ip, slave_id, mb_register, mb_num_regs,
-                                                                data_type='uint16', zero_based=True, mb_func=mb_func,
-                                                                b_raw_bytes=True, mb_timeout=self.mb_timeout)
-                        if raw_byte_return[0] == 'Err':
-                            mb_error = raw_byte_return
-                            response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id, mb_func + 128,
-                                              mb_error[1]])
-                            if _debug: KlassModbusRequestHandler._debug('        - modbus return error trans id %r: %r',
-                                                                        transaction_id, mb_error)
-                        else:
-                            len_return = len(raw_byte_return) + 3
-                            len_rtn_hi = (len_return >> 8) & 0xff
-                            len_rtn_lo = len_return & 0xff
-                            response_list = transaction_id + [0, 0, len_rtn_hi, len_rtn_lo, virt_id, mb_func,
-                                                              len_return - 3]
-                            response_list.extend(raw_byte_return)
-                            response = bytes(response_list)
-                            if _debug: KlassModbusRequestHandler._debug('        - modbus return trans id %r: %r',
-                                                                        transaction_id, response_list)
-                    # response = bytes([0, 0, 0, 0, 0, 7, 1, 3, 4, 1, 2, 3, 4])
+                        # straight through request to meter
+                        response = self._straight_through_request(mb_ip, transaction_id, virt_id, slave_id, mb_func,
+                                                                  mb_register, mb_num_regs)
+
                     # if _debug: KlassModbusRequestHandler._debug('response to modbus request in process %s: %s',
                     #                                             cur_process, response)
                     self.request.sendall(response)
@@ -205,19 +127,7 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000,
 
         def find_slave_id(self, virt_id):
             for dev_inst in self.app_dict:
-                # print(dev_inst, virt_id, dev_inst % 100, type(self.app_dict[dev_inst]))
                 if dev_inst % 100 == virt_id:
-                    # print(dev_inst, 'properties:')
-                    # print(self.app_dict[dev_inst].localDevice.deviceIp, self.app_dict[dev_inst].localDevice.modbusId)
-                    # for key, val in self.app_dict[dev_inst].objectName['heat_flow_steam']._values.items():
-                    #     print(key, val, self.app_dict[dev_inst].objectName['heat_flow_steam'].__getattr__(key))
-                    #     # print('\t', key, ':', val)
-                    #     if val.objectIdentifier[0] == 'device':
-                    #         continue
-                    #     print('\t', key)
-                    #     print('\t\t', val.registerStart, val.reliability, val.presentValue)
-                    #     # for key2, val2 in val.__dict__.items():
-                    #     #     print('\t\t', key2, ':', val2)
                     if self.app_dict[dev_inst].localDevice.deviceIp == '0.0.0.0':
                         mb_ip = '/dev/serial0'
                     else:
@@ -227,7 +137,105 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000,
             # if no matching device is found, assume a serial connection is desired
             return 0, '/dev/serial0', virt_id
 
+        def _convert_req_float(self, mb_ip, transaction_id, virt_id, slave_id, mb_func, mb_register,
+                                      mb_num_regs):
+            # TBD
+            mb_error = mb_poll.MB_ERR_DICT[2]
+            response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id, mb_func + 128,
+                              mb_error[1]])
+            return response
 
+        def _bacnet_request(self, dev_inst, transaction_id, virt_id, mb_func, mb_register, mb_num_regs):
+            if mb_num_regs == 2:
+                for obj_inst in self.app_dict[dev_inst].objectIdentifier:
+                    strd_pt = self.app_dict[dev_inst].objectIdentifier[obj_inst]
+
+                    if strd_pt.objectIdentifier[0] == 'device':
+                        continue
+
+                    if strd_pt.registerStart == (mb_register - 49999):
+                        bn_req = {'dev_inst': dev_inst, 'obj_inst': obj_inst}
+                        self.server.mbtcp_to_bcnt_queue.put(bn_req, timeout=0.1)
+
+                        # print('added to queue', dev_inst, pt_id)
+                        start_time = _time()
+                        bn_resp = None
+                        while (_time() - start_time) < (self.mb_timeout / 1000):
+                            try:
+                                bn_resp = self.server.bcnt_to_mbtcp_queue.get_nowait()
+                            except Empty:
+                                continue
+
+                            if (bn_resp['dev_inst'], bn_resp['obj_inst']) == (bn_req['dev_inst'], bn_req['obj_inst']):
+                                # print('bn_resp', bn_resp)
+                                break
+                            else:
+                                self.server.bcnt_to_mbtcp_queue.put(bn_resp, timeout=0.1)
+                                bn_resp = None
+                                # print('wrong BACnet response found!')
+
+                        if bn_resp is None:
+                            mb_error = mb_poll.MB_ERR_DICT[11]
+                            response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id, mb_func + 128,
+                                              mb_error[1]])
+                        elif bn_resp['reliability'] == 'noFaultDetected':
+                            val = bytearray(struct.pack('>f', bn_resp['presentValue']))  # > forces big endian
+                            # print('pv:', bn_resp['presentValue'], ', ba:', val.hex(), len(val), bytes(val).hex())
+
+                            if self.mb_wo == 'msw':
+                                # print('msw', val.hex(), bytes(val).hex())
+                                pass  # nothing to do here
+                            else:
+                                val.extend(val[0:2])
+                                val = val[2:]
+                                # print('lsw', val.hex(), bytes(val).hex())
+
+                            response = bytearray([transaction_id[0], transaction_id[1], 0, 0, 0, 7, virt_id,
+                                                  mb_func, 4])
+                            response.extend(val)
+                        else:
+                            mb_error = mb_poll.MB_ERR_DICT[3]
+                            response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id, mb_func + 128,
+                                              mb_error[1]])
+                        break
+                else:
+                    # no such register found: mb_register - 49999
+                    mb_error = mb_poll.MB_ERR_DICT[2]
+                    response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id, mb_func + 128,
+                                      mb_error[1]])
+            else:
+                # wrong number of regs requested
+                mb_error = mb_poll.MB_ERR_DICT[2]
+                response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id, mb_func + 128,
+                                  mb_error[1]])
+
+            return response
+
+        def _straight_through_request(self, mb_ip, transaction_id, virt_id, slave_id, mb_func, mb_register,
+                                      mb_num_regs):
+            if _debug: KlassModbusRequestHandler._debug('    - modbus request id: %r, slave: %r, func: %r, '
+                                                        'register: %r, num_regs: %r', transaction_id,
+                                                        slave_id, mb_func, mb_register, mb_num_regs)
+            raw_byte_return = mb_poll.modbus_poller(mb_ip, slave_id, mb_register, mb_num_regs,
+                                                    data_type='uint16', zero_based=True, mb_func=mb_func,
+                                                    b_raw_bytes=True, mb_timeout=self.mb_timeout)
+            if raw_byte_return[0] == 'Err':
+                mb_error = raw_byte_return
+                response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id, mb_func + 128,
+                                  mb_error[1]])
+                if _debug: KlassModbusRequestHandler._debug('        - modbus return error trans id %r: %r',
+                                                            transaction_id, mb_error)
+            else:
+                len_return = len(raw_byte_return) + 3
+                len_rtn_hi = (len_return >> 8) & 0xff
+                len_rtn_lo = len_return & 0xff
+                response_list = transaction_id + [0, 0, len_rtn_hi, len_rtn_lo, virt_id, mb_func,
+                                                  len_return - 3]
+                response_list.extend(raw_byte_return)
+                response = bytes(response_list)
+                if _debug: KlassModbusRequestHandler._debug('        - modbus return trans id %r: %r',
+                                                            transaction_id, response_list)
+            return response
     bacpypes_debugging(KlassModbusRequestHandler)
     return KlassModbusRequestHandler
 
@@ -297,17 +305,6 @@ class ForkedTCPServer(socketserver.ForkingMixIn, MBTCPServer):
 #     pass
 
 
-# class ForkedTCPServer(socketserver.ForkingMixIn, socketserver.TCPServer):
-#     def __init__(self, app_dict, server_address, RequestHandlerClass, bind_and_activate=True):
-#         socketserver.TCPServer.__init__(self, server_address, RequestHandlerClass, bind_and_activate=bind_and_activate)
-#         self.app_dict = app_dict
-#
-#     def finish_request(self, request, client_address):
-#         """Finish one request by instantiating RequestHandlerClass."""
-#         # print(self.test_var)
-#         self.RequestHandlerClass(self.app_dict, request, client_address, self)
-
-
 # def client(ip, port, message):
 #     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 #     sock.connect((ip, port))
@@ -321,6 +318,7 @@ class ForkedTCPServer(socketserver.ForkingMixIn, MBTCPServer):
 
 if __name__ == '__main__':
     import argparse
+    import multiprocessing
 
     parser = argparse.ArgumentParser()
 

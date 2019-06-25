@@ -32,7 +32,8 @@ from bacpypes.vlan import Network, Node
 import modbusregisters
 import modbusbacnetclasses
 import socketserver
-from multiprocessing import Process
+# from multiprocessing import Process
+import multiprocessing as mp
 import modbusserver
 import queue
 
@@ -355,9 +356,9 @@ def main():
     dev_dict = {}
     app_dict = {}
 
-    # queues for modbus requests of bacnet stored values
-    mbtcp_to_bcnt_queue = queue.Queue()
-    bcnt_to_mbtcp_queue = queue.Queue()
+    # queues for modbus requests of bacnet stored values, NOTE: modbus requests are handled in another process
+    mbtcp_to_bcnt_queue = mp.Queue()  # queue.Queue()
+    bcnt_to_mbtcp_queue = mp.Queue()  # queue.Queue()
 
     for fn in os.listdir(sys.path[0] + '/DeviceList'):
         if fn.endswith('.json'):  # and fn.startswith('DRL'):
@@ -477,15 +478,6 @@ def main():
                         # _log.debug("    - maio: %r", maio)
                         app_dict[dev_inst].add_object(maio)
 
-                        # strd_pt = app_dict[dev_inst].objectIdentifier[('analogInput', obj_inst)]
-                        # print(obj_name, obj_inst, ':',
-                        #       hex(id(strd_pt.reliability)),
-                        #       hex(id(strd_pt._values)),
-                        #       strd_pt.ReadProperty('reliability'),
-                        #       strd_pt._values['reliability'],
-                        #       hex(id(strd_pt._values['reliability'])),
-                        #       hex(id(strd_pt._properties['reliability'])))
-
     print('init modbus bank')
     obj_val_bank = modbusregisters.ModbusFormatAndStorage(mb_to_bank_queue, bank_to_bcnt_queue, object_val_dict)
 
@@ -496,8 +488,6 @@ def main():
     reboot_task = RebootWithNoTraffic(reboot_queue, time_to_check=reboot_check_time)
 
     print('init update bacnet objects task')
-    # test_objects = modbusbacnetclasses.TestTask(bank_to_bcnt_queue, app_dict, 1000)
-
     update_objects = modbusbacnetclasses.UpdateObjectsFromModbus(bank_to_bcnt_queue, app_dict,
                                                                  bcnt_obj_update_interval)
 
@@ -515,12 +505,10 @@ def main():
     else:
         print('no heartbeat here')
 
-    # set up modbus server
+    # set up forked modbus server
     socketserver.TCPServer.allow_reuse_address = True
 
-    # print('pigw', hex(id(app_dict)))
-    ModbusRequestHandler = modbusserver.make_modbus_request_handler(app_dict,
-                                                                    mb_timeout=mb_timeout,
+    ModbusRequestHandler = modbusserver.make_modbus_request_handler(app_dict, mb_timeout=mb_timeout,
                                                                     tcp_timeout=mbtcp_timeout,
                                                                     mb_translation=modbus_translation,
                                                                     mb_wo=modbus_word_order)
@@ -528,7 +516,7 @@ def main():
     modbus_fork_server = modbusserver.ForkedTCPServer(mbtcp_to_bcnt_queue, bcnt_to_mbtcp_queue,
                                                       (str(args.ini.localip).split('/')[0], 502), ModbusRequestHandler)
 
-    mb_server_fork = Process(target=modbus_fork_server.serve_forever)
+    mb_server_fork = mp.Process(target=modbus_fork_server.serve_forever)
     mb_server_fork.daemon = True
     print('modbus server start')
     mb_server_fork.start()
