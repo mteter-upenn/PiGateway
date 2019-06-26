@@ -179,7 +179,7 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                                                                             'expected %s, %s, return to queue',
                                                                             bn_resp['dev_inst'], bn_resp['obj_inst'],
                                                                             dev_inst, obj_inst)
-                                
+
                                 if _time() - bn_resp['q_timestamp'] < 30:
                                     # if the response was put in the queue within last 30 seconds, then put back in the
                                     #     queue, otherwise, let it go
@@ -249,8 +249,7 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                                                   len_return - 3]
                 response_list.extend(raw_byte_return)
                 response = bytes(response_list)
-                if _debug: KlassModbusRequestHandler._debug('        - modbus return trans id %r: %r',
-                                                            transaction_id, response_list)
+                if _debug: KlassModbusRequestHandler._debug('        - modbus return success %r', response_list[0:9])
             return response
     bacpypes_debugging(KlassModbusRequestHandler)
     return KlassModbusRequestHandler
