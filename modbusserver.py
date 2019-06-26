@@ -148,6 +148,9 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
             return response
 
         def _bacnet_request(self, dev_inst, transaction_id, virt_id, mb_func, mb_register, mb_num_regs):
+            if _debug: KlassModbusRequestHandler._debug('    - bacnet store request: %r, virt_id: %r, func: %r, '
+                                                        'register: %r, num_regs: %r', transaction_id,
+                                                        virt_id, mb_func, mb_register, mb_num_regs)
             if mb_num_regs == 2:
                 for obj_inst in self.app_dict[dev_inst].objectIdentifier:
                     bcnt_pt = self.app_dict[dev_inst].objectIdentifier[obj_inst]
@@ -193,6 +196,8 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                             mb_error = mb_poll.MB_ERR_DICT[11]
                             response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id, mb_func + 128,
                                               mb_error[1]])
+                            if _debug: KlassModbusRequestHandler._debug('    - modbus return failure: %r',
+                                                                        response)
                         elif bn_resp['reliability'] == 'noFaultDetected':
                             val = bytearray(struct.pack('>f', bn_resp['presentValue']))  # > forces big endian
                             # print('pv:', bn_resp['presentValue'], ', ba:', val.hex(), len(val), bytes(val).hex())
@@ -208,11 +213,16 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                             response = bytearray([transaction_id[0], transaction_id[1], 0, 0, 0, 7, virt_id,
                                                   mb_func, 4])
                             response.extend(val)
+
+                            if _debug: KlassModbusRequestHandler._debug('    - modbus return success: %r',
+                                                                        response[0:9])
                         else:
                             # bad reliability
                             mb_error = mb_poll.MB_ERR_DICT[4]
                             response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id, mb_func + 128,
                                               mb_error[1]])
+                            if _debug: KlassModbusRequestHandler._debug('    - modbus return failure: %r',
+                                                                        response)
                         break
                 else:
                     # no such register found: mb_register - 49999
@@ -229,7 +239,7 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
 
         def _straight_through_request(self, mb_ip, transaction_id, virt_id, slave_id, mb_func, mb_register,
                                       mb_num_regs):
-            if _debug: KlassModbusRequestHandler._debug('    - modbus request id: %r, slave: %r, func: %r, '
+            if _debug: KlassModbusRequestHandler._debug('    - straighthrough request: %r, slave: %r, func: %r, '
                                                         'register: %r, num_regs: %r', transaction_id,
                                                         slave_id, mb_func, mb_register, mb_num_regs)
             raw_byte_return = mb_poll.modbus_poller(mb_ip, slave_id, mb_register, mb_num_regs,
