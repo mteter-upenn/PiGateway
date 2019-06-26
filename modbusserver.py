@@ -196,7 +196,8 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                                                   mb_func, 4])
                             response.extend(val)
                         else:
-                            mb_error = mb_poll.MB_ERR_DICT[3]
+                            # bad reliability
+                            mb_error = mb_poll.MB_ERR_DICT[4]
                             response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id, mb_func + 128,
                                               mb_error[1]])
                         break
