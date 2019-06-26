@@ -7,6 +7,7 @@ import socket
 
 from queue import Empty
 from time import time as _time
+from time import sleep as _sleep
 
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
 from bacpypes.task import RecurringTask
@@ -170,6 +171,9 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                             try:
                                 bn_resp = self.server.bcnt_to_mbtcp_queue.get_nowait()
                             except Empty:
+                                # do i need to throw a delay on this? otherwise there might be a problem with hammering
+                                # the queue for requests
+                                _sleep(0.05)
                                 continue
 
                             if (bn_resp['dev_inst'], bn_resp['obj_inst']) == (bn_req['dev_inst'], bn_req['obj_inst']):
