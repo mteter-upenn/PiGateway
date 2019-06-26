@@ -98,6 +98,9 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                     mb_error, transaction_id, virt_id, mb_func, mb_register, mb_num_regs = parse_modbus_request(data)
                     dev_inst, mb_ip, slave_id = self.find_slave_id(virt_id)
 
+                    if _debug: KlassModbusRequestHandler._debug('    - modbus request: virt_id: %s, register: %s',
+                                                                virt_id, mb_register)
+
                     if mb_error != 0:
                         # if error found in request
                         if _debug: KlassModbusRequestHandler._debug('    - modbus request error: %r', mb_error)
@@ -155,6 +158,7 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                     if bcnt_pt.registerStart == (mb_register - 39999):
                         bn_req = {'dev_inst': dev_inst, 'obj_inst': obj_inst}
                         self.server.mbtcp_to_bcnt_queue.put(bn_req, timeout=0.1)
+                        if _debug: KlassModbusRequestHandler._debug('        - request for %s, %s', dev_inst, obj_inst)
 
                         # print('added to queue', dev_inst, pt_id)
                         start_time = _time()
@@ -167,12 +171,21 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
 
                             if (bn_resp['dev_inst'], bn_resp['obj_inst']) == (bn_req['dev_inst'], bn_req['obj_inst']):
                                 # found correct response
+                                if _debug: KlassModbusRequestHandler._debug('        - recieved response for %s, %s',
+                                                                            dev_inst, obj_inst)
                                 break
                             else:
+                                if _debug: KlassModbusRequestHandler._debug('        - %s, %s doesn\'t match '
+                                                                            'expected %s, %s, return to queue',
+                                                                            bn_resp['dev_inst'], bn_resp['obj_inst'],
+                                                                            dev_inst, obj_inst)
+                                
                                 if _time() - bn_resp['q_timestamp'] < 30:
                                     # if the response was put in the queue within last 30 seconds, then put back in the
                                     #     queue, otherwise, let it go
                                     self.server.bcnt_to_mbtcp_queue.put(bn_resp, timeout=0.1)
+                                    if _debug: KlassModbusRequestHandler._debug('            - returned to queue')
+
                                 bn_resp = None
                                 # print('wrong BACnet response found!')
 
