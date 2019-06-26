@@ -282,7 +282,7 @@ def display_devices(file_prefix=None):
     table1.column_headers = ['BACnet Id', 'Name', 'IP', 'Modbus Id']
     table2.column_headers = ['BACnet Id', 'Description']
     table3.column_headers = ['BACnet Id', 'Map Name', 'Map Rev', 'Meter Name']
-    table4.column_headers = ['BACnet Id', 'Modbus TO', 'COV Subscribe']
+    table4.column_headers = ['BACnet Id', 'Modbus Port', 'COV Subscribe', 'Response WO']
     hold_ovrvw_table1.column_headers = ['BACnet Id', 'Num Regs', 'WO', 'Polling', 'MB TO', 'Group Cons', 'Group gap']
     hold_table1.column_headers = ['Object Instance', 'Object Name', 'Reg', 'Format', 'Poll', 'Units']
     inpt_ovrvw_table1.column_headers = ['BACnet Id', 'Num Regs', 'WO', 'Polling', 'MB TO', 'Group Cons', 'Group gap']
@@ -293,6 +293,9 @@ def display_devices(file_prefix=None):
     hold_reg_list = []
     inpt_reg_ovrvw_list = []
     inpt_reg_list = []
+
+    total_num_hold_regs = 0
+    total_num_inpt_regs = 0
 
     for dev_filename in os.listdir(os.getcwd() + '/DeviceList'):
         if dev_filename.endswith('.json'):  # and fn.startswith('DRL'):
@@ -311,9 +314,10 @@ def display_devices(file_prefix=None):
                 meter_model_name = map_dict.get('meterModelName', 'MODEL NAME')
                 modbus_port = map_dict.get('modbusPort', 'MUST HAVE MODBUS PORT')
                 cov_subscribe = map_dict.get('covSubscribe', '-')
+                meter_resp_wo = map_dict.get('meterRespWordOrder', 'lsw')
 
                 dev_list.append([device_instance, device_name, device_ip, modbus_id, device_description, map_name,
-                                 map_rev, meter_model_name, modbus_port, cov_subscribe])
+                                 map_rev, meter_model_name, modbus_port, cov_subscribe, meter_resp_wo])
 
                 if 'holdingRegisters' in map_dict:
                     hold_map_dict = map_dict['holdingRegisters']
@@ -324,6 +328,8 @@ def display_devices(file_prefix=None):
                     request_timeout = hold_map_dict.get('requestTimeout', 'MUST HAVE THIS')
                     group_consecutive = hold_map_dict.get('groupConsecutive', 'MUST HAVE THIS')
                     group_gaps = hold_map_dict.get('groupGaps', 'MUST HAVE THIS')
+
+                    total_num_hold_regs += num_regs
 
                     hold_reg_ovrvw_list.append([device_instance, num_regs, word_order, polling_time, request_timeout,
                                                 group_consecutive, group_gaps])
@@ -355,6 +361,8 @@ def display_devices(file_prefix=None):
                     request_timeout = inpt_map_dict.get('requestTimeout', 'MUST HAVE THIS')
                     group_consecutive = inpt_map_dict.get('groupConsecutive', 'MUST HAVE THIS')
                     group_gaps = inpt_map_dict.get('groupGaps', 'MUST HAVE THIS')
+
+                    total_num_inpt_regs += num_regs
 
                     inpt_reg_ovrvw_list.append([device_instance, num_regs, word_order, polling_time, request_timeout,
                                                 group_consecutive, group_gaps])
@@ -391,7 +399,7 @@ def display_devices(file_prefix=None):
             table1.append_row([dev_list[ii][0], dev_list[ii][1], dev_list[ii][2], dev_list[ii][3]])
             table2.append_row([dev_list[ii][0], dev_list[ii][4]])
             table3.append_row([dev_list[ii][0], dev_list[ii][5], dev_list[ii][6], dev_list[ii][7]])
-            table4.append_row([dev_list[ii][0], dev_list[ii][8], dev_list[ii][9]])
+            table4.append_row([dev_list[ii][0], dev_list[ii][8], dev_list[ii][9], dev_list[ii][10]])
 
             hold_ovrvw_table1.append_row(hold_reg_ovrvw_list[ii])
             inpt_ovrvw_table1.append_row(inpt_reg_ovrvw_list[ii])
@@ -400,10 +408,12 @@ def display_devices(file_prefix=None):
         print(table2, '\n')
         print(table3, '\n')
         print(table4, '\n')
-        print('HOLDING REGISTERS OVERVIEW')
-        print(hold_ovrvw_table1, '\n')
-        print('INPUT REGISTERS OVERVIEW')
-        print(inpt_ovrvw_table1, '\n')
+        if total_num_hold_regs > 0:
+            print('HOLDING REGISTERS OVERVIEW')
+            print(hold_ovrvw_table1, '\n')
+        if total_num_inpt_regs > 0:
+            print('INPUT REGISTERS OVERVIEW')
+            print(inpt_ovrvw_table1, '\n')
 
         if file_prefix is not None:
             if len(hold_reg_list) > 0:
