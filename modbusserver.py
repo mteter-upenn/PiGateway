@@ -221,7 +221,7 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                             mb_error = mb_poll.MB_ERR_DICT[11]
                             response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id, mb_func + 128,
                                               mb_error[1]])
-                            if _debug: KlassModbusRequestHandler._debug('(%r)    - modbus return failure: %r',
+                            if _debug: KlassModbusRequestHandler._debug('(%r)    - modbus return FAILURE: %r',
                                                                         self.mb_pid, list(response))
                         elif bn_resp['reliability'] == 'noFaultDetected':
                             val = bytearray(struct.pack('>f', bn_resp['presentValue']))  # > forces big endian
@@ -246,7 +246,7 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                             mb_error = mb_poll.MB_ERR_DICT[4]
                             response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id, mb_func + 128,
                                               mb_error[1]])
-                            if _debug: KlassModbusRequestHandler._debug('(%r)    - modbus return comm failure: %r',
+                            if _debug: KlassModbusRequestHandler._debug('(%r)    - modbus return comm FAILURE: %r',
                                                                         self.mb_pid, list(response))
                         break
                 else:
