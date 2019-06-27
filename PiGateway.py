@@ -34,6 +34,7 @@ import modbusbacnetclasses
 import socketserver
 # from multiprocessing import Process
 import multiprocessing as mp
+import threading
 import modbusserver
 import queue
 
@@ -357,8 +358,11 @@ def main():
     app_dict = {}
 
     # queues for modbus requests of bacnet stored values, NOTE: modbus requests are handled in another process
-    mbtcp_to_bcnt_queue = mp.Queue()  # queue.Queue()
-    bcnt_to_mbtcp_queue = mp.Queue()  # queue.Queue()
+    # mbtcp_to_bcnt_queue = mp.Queue()
+    # bcnt_to_mbtcp_queue = mp.Queue()
+
+    mbtcp_to_bcnt_queue = queue.Queue()
+    bcnt_to_mbtcp_queue = queue.Queue()
 
     for fn in os.listdir(sys.path[0] + '/DeviceList'):
         if fn.endswith('.json'):  # and fn.startswith('DRL'):
@@ -514,19 +518,31 @@ def main():
                                                                     tcp_timeout=mbtcp_timeout,
                                                                     mb_translation=modbus_translation)
 
-    modbus_fork_server = modbusserver.ForkedTCPServer(mbtcp_to_bcnt_queue, bcnt_to_mbtcp_queue,
-                                                      (str(args.ini.localip).split('/')[0], 502), ModbusRequestHandler)
+    # modbus_fork_server = modbusserver.ForkedTCPServer(mbtcp_to_bcnt_queue, bcnt_to_mbtcp_queue,
+    #                                                   (str(args.ini.localip).split('/')[0], 502), ModbusRequestHandler)
+    #
+    # mb_server_fork = mp.Process(target=modbus_fork_server.serve_forever)
+    # mb_server_fork.daemon = True
+    # print('modbus server start')
+    # mb_server_fork.start()
 
-    mb_server_fork = mp.Process(target=modbus_fork_server.serve_forever)
-    mb_server_fork.daemon = True
+    modbusserver.ThreadedTCPServer.daemon_threads = True
+    modbusserver.ThreadedTCPServer.allow_reuse_address = True
+    modbus_thread_server = modbusserver.ThreadedTCPServer(mbtcp_to_bcnt_queue, bcnt_to_mbtcp_queue,
+                                                          (str(args.ini.localip).split('/')[0], 502),
+                                                          ModbusRequestHandler)
+
+    mb_server_thread = threading.Thread(target=modbus_thread_server.serve_forever)
+    mb_server_thread.daemon = True
     print('modbus server start')
-    mb_server_fork.start()
+    mb_server_thread.start()
 
     _log.debug("running")
     print('bacnet start')
     run()
 
-    modbus_fork_server.socket.close()
+    # modbus_fork_server.socket.close()
+    modbus_thread_server.socket.close()
     print('PiGateway finish')
     _log.debug("fini")
 

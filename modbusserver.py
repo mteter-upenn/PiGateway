@@ -364,7 +364,12 @@ class MBTCPServer(socketserver.TCPServer):
         self.bcnt_to_mbtcp_queue = bcnt_to_mbtcp_queue
         socketserver.TCPServer.__init__(self, server_address, RequestHandlerClass, bind_and_activate=bind_and_activate)
 
+
 class ForkedTCPServer(socketserver.ForkingMixIn, MBTCPServer):
+    pass
+
+
+class ThreadedTCPServer(socketserver.ThreadingMixIn, MBTCPServer):
     pass
 
 
