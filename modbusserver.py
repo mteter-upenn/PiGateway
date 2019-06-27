@@ -117,7 +117,7 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                         # TBD
                         # search for device info, then use that to make direct query of modbus device, modifying for
                         # datatype
-                        response = self._convert_req_float(self, mb_ip, transaction_id, virt_id, slave_id, mb_func,
+                        response = self._convert_req_float(mb_ip, transaction_id, virt_id, slave_id, mb_func,
                                                            mb_register, mb_num_regs)
                     elif dev_inst != 0 and self.mb_translation and 39999 < mb_register < 60000:
                         # search for device info and grab values direct from bacnet objects (limit to one?)
@@ -146,8 +146,7 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
             # if no matching device is found, assume a serial connection is desired
             return 0, '/dev/serial0', virt_id
 
-        def _convert_req_float(self, mb_ip, transaction_id, virt_id, slave_id, mb_func, mb_register,
-                                      mb_num_regs):
+        def _convert_req_float(self, mb_ip, transaction_id, virt_id, slave_id, mb_func, mb_register, mb_num_regs):
             # TBD
             mb_error = mb_poll.MB_ERR_DICT[2]
             response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id, mb_func + 128,
@@ -312,7 +311,7 @@ class HandleModbusBACnetRequests(RecurringTask):
 
     def process_task(self):
         start_time = _time()
-        # if _debug: HandleModbusBACnetRequests._debug('start recurring task')
+        if _debug: HandleModbusBACnetRequests._debug('start recurring task')
 
         while (not self.mbtcp_to_bcnt_queue.empty()) and (_time() - start_time < self.max_run_time):
             # if not self.bank_to_bcnt_queue.empty():
