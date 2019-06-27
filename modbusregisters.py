@@ -295,7 +295,8 @@ class ModbusFormatAndStorage(threading.Thread):
 
                     # if _debug_modbus_registers: print(obj, obj_val)
 
-        self.bank_to_bcnt_queue.put(bcnt_q_dict, timeout=0.1)
+        # self.bank_to_bcnt_queue.put(bcnt_q_dict, timeout=0.1)
+        self.bank_to_bcnt_queue.put(bcnt_q_dict)
         return
 
 
@@ -488,7 +489,8 @@ class ModbusPollThread(threading.Thread):
             tx_resp = {'type': 'modbus', 'bcnt_inst': self.bcnt_instance, 'mb_func': self.mb_func,
                        'mb_reg': self.register, 'mb_num_regs': self.num_regs, 'mb_otpt': otpt,
                        'mb_resp_time': time.time(), 'obj_list': self.object_list}
-            self.tx_queue.put(tx_resp, 0.1)
+            # self.tx_queue.put(tx_resp, 0.1)
+            self.tx_queue.put(tx_resp)
             if otpt[0] == 'Err':
                 if _debug: ModbusPollThread._debug('got modbus error for %s %s at %s: %s', self.ip, self.mb_id,
                                                    _strftime(decimal_places=3), otpt)

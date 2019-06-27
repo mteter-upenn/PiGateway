@@ -161,7 +161,7 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
 
                     if bcnt_pt.registerStart == (mb_register - 39999):
                         bn_req = {'dev_inst': dev_inst, 'obj_inst': obj_inst}
-                        self.server.mbtcp_to_bcnt_queue.put(bn_req, timeout=0.1)
+                        self.server.mbtcp_to_bcnt_queue.put(bn_req)
                         if _debug: KlassModbusRequestHandler._debug('        - request for %s, %s', dev_inst, obj_inst)
 
                         # print('added to queue', dev_inst, pt_id)
@@ -193,7 +193,7 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                                 if _time() - bn_resp['q_timestamp'] < 30:
                                     # if the response was put in the queue within last 30 seconds, then put back in the
                                     #     queue, otherwise, let it go
-                                    self.server.bcnt_to_mbtcp_queue.put(bn_resp, timeout=0.1)
+                                    self.server.bcnt_to_mbtcp_queue.put(bn_resp)
                                     if _debug: KlassModbusRequestHandler._debug('            - returned to queue')
 
                                 bn_resp = None
@@ -318,7 +318,7 @@ class HandleModbusBACnetRequests(RecurringTask):
             if _debug: HandleModbusBACnetRequests._debug('\t\tvals: %s, %s, %s', bn_req['presentValue'],
                                                          bn_req['reliability'], bn_req['q_timestamp'])
 
-            self.bcnt_to_mbtcp_queue.put(bn_req, timeout=0.1)
+            self.bcnt_to_mbtcp_queue.put(bn_req)
 
         # if _debug: HandleModbusBACnetRequests._debug('end recurring task')
 
