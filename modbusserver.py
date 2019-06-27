@@ -5,7 +5,7 @@ import mbpy.mb_poll as mb_poll
 import select
 import socket
 
-from queue import Empty
+from queue import Empty, Full
 from time import time as _time
 from time import sleep as _sleep
 
@@ -161,7 +161,13 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
 
                     if bcnt_pt.registerStart == (mb_register - 39999):
                         bn_req = {'dev_inst': dev_inst, 'obj_inst': obj_inst}
-                        self.server.mbtcp_to_bcnt_queue.put(bn_req)
+                        try:
+                            self.server.mbtcp_to_bcnt_queue.put(bn_req, timeout=0.1)
+                        except Full:
+                            if _debug: KlassModbusRequestHandler._debug('        - PUT FAILURE: %s, %s', dev_inst,
+                                                                        obj_inst)
+                            self.server.mbtcp_to_bcnt_queue.put(bn_req, timeout=0.1)
+
                         if _debug: KlassModbusRequestHandler._debug('        - request for %s, %s', dev_inst, obj_inst)
 
                         # print('added to queue', dev_inst, pt_id)
@@ -191,10 +197,14 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                                                                             dev_inst, obj_inst)
 
                                 if _time() - bn_resp['q_timestamp'] < 30:
+                                    if _debug: KlassModbusRequestHandler._debug('            - returned to queue')
                                     # if the response was put in the queue within last 30 seconds, then put back in the
                                     #     queue, otherwise, let it go
-                                    self.server.bcnt_to_mbtcp_queue.put(bn_resp)
-                                    if _debug: KlassModbusRequestHandler._debug('            - returned to queue')
+                                    try:
+                                        self.server.bcnt_to_mbtcp_queue.put(bn_resp, timeout=0.1)
+                                    except Full:
+                                        if _debug: KlassModbusRequestHandler._debug('            - PUT FAILURE!:')
+                                        self.server.bcnt_to_mbtcp_queue.put(bn_resp, timeout=0.1)
 
                                 bn_resp = None
                                 # print('wrong BACnet response found!')
@@ -318,7 +328,11 @@ class HandleModbusBACnetRequests(RecurringTask):
             if _debug: HandleModbusBACnetRequests._debug('\t\tvals: %s, %s, %s', bn_req['presentValue'],
                                                          bn_req['reliability'], bn_req['q_timestamp'])
 
-            self.bcnt_to_mbtcp_queue.put(bn_req)
+            try:
+                self.bcnt_to_mbtcp_queue.put(bn_req, timeout=0.1)
+            except Full:
+                if _debug: HandleModbusBACnetRequests._debug('\t\tPUT FAILURE!: %s, %s', dev_inst, obj_inst)
+                self.bcnt_to_mbtcp_queue.put(bn_req, timeout=0.1)
 
         # if _debug: HandleModbusBACnetRequests._debug('end recurring task')
 
