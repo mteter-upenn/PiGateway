@@ -165,6 +165,9 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                         continue
 
                     if bcnt_pt.registerStart == (mb_register - 39999):
+                        if _debug: KlassModbusRequestHandler._debug('(%r)        - request for %s, %s', self.mb_pid,
+                                                                    dev_inst, obj_inst)
+
                         bn_req = {'dev_inst': dev_inst, 'obj_inst': obj_inst}
                         try:
                             self.server.mbtcp_to_bcnt_queue.put(bn_req, timeout=0.1)
@@ -173,8 +176,8 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                                                                         self.mb_pid, dev_inst, obj_inst)
                             self.server.mbtcp_to_bcnt_queue.put(bn_req, timeout=0.1)
 
-                        if _debug: KlassModbusRequestHandler._debug('(%r)        - request for %s, %s', self.mb_pid,
-                                                                    dev_inst, obj_inst)
+                        if _debug: KlassModbusRequestHandler._debug('(%r)        - queue size: %s', self.mb_pid,
+                                                                    self.server.mbtcp_to_bcnt_queue.qsize())
 
                         # print('added to queue', dev_inst, pt_id)
                         start_time = _time()
@@ -311,7 +314,8 @@ class HandleModbusBACnetRequests(RecurringTask):
 
     def process_task(self):
         start_time = _time()
-        if _debug: HandleModbusBACnetRequests._debug('start recurring task')
+        if _debug: HandleModbusBACnetRequests._debug('start recurring task at %s, q size: ', start_time,
+                                                     self.mbtcp_to_bcnt_queue.qsize())
 
         while (not self.mbtcp_to_bcnt_queue.empty()) and (_time() - start_time < self.max_run_time):
             # if not self.bank_to_bcnt_queue.empty():
