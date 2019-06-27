@@ -243,7 +243,7 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                             response.extend(val)
 
                             if _debug: KlassModbusRequestHandler._debug('(%r)    - modbus return success: %r',
-                                                                        self.mb_pid, list(response[0:9]))
+                                                                        self.mb_pid, list(response))
                         else:
                             # bad reliability
                             mb_error = mb_poll.MB_ERR_DICT[4]
@@ -314,8 +314,9 @@ class HandleModbusBACnetRequests(RecurringTask):
 
     def process_task(self):
         start_time = _time()
-        if _debug: HandleModbusBACnetRequests._debug('start recurring task at %s, q size: %s', start_time,
-                                                     self.mbtcp_to_bcnt_queue.qsize())
+        if _debug: HandleModbusBACnetRequests._debug('start recurring task  q size: %s (%s), at %s',
+                                                     self.mbtcp_to_bcnt_queue.qsize(), self.mbtcp_to_bcnt_queue.empty(),
+                                                     start_time)
 
         while (not self.mbtcp_to_bcnt_queue.empty()) and (_time() - start_time < self.max_run_time):
             # if not self.bank_to_bcnt_queue.empty():
@@ -346,6 +347,11 @@ class HandleModbusBACnetRequests(RecurringTask):
             except Full:
                 if _debug: HandleModbusBACnetRequests._debug('\t\tPUT FAILURE!: %s, %s', dev_inst, obj_inst)
                 self.bcnt_to_mbtcp_queue.put(bn_req, timeout=0.1)
+
+            break
+        else:
+            if _debug: HandleModbusBACnetRequests._debug('end loop, empty: %s, time: %s',
+                                                         self.mbtcp_to_bcnt_queue.empty(), (_time() - start_time))
 
         # if _debug: HandleModbusBACnetRequests._debug('end recurring task')
 
