@@ -168,12 +168,15 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                         start_time = _time()
                         bn_resp = None
                         while (_time() - start_time) < (self.mb_timeout / 1000):
-                            try:
-                                bn_resp = self.server.bcnt_to_mbtcp_queue.get_nowait()
-                            except Empty:
-                                # do i need to throw a delay on this? otherwise there might be a problem with hammering
-                                # the queue for requests
-                                _sleep(0.05)
+                            if not self.server.bcnt_to_mbtcp_queue.empty():
+                                try:
+                                    bn_resp = self.server.bcnt_to_mbtcp_queue.get_nowait()
+                                except Empty:
+                                    # do i need to throw a delay on this? otherwise there might be a problem with
+                                    # hammering the queue for requests
+                                    _sleep(0.05)
+                                    continue
+                            else:
                                 continue
 
                             if (bn_resp['dev_inst'], bn_resp['obj_inst']) == (bn_req['dev_inst'], bn_req['obj_inst']):
@@ -278,7 +281,7 @@ class HandleModbusBACnetRequests(RecurringTask):
         self.mbtcp_to_bcnt_queue = mbtcp_to_bcnt_queue
         self.bcnt_to_mbtcp_queue = bcnt_to_mbtcp_queue
         self.app_dict = app_dict
-        self.max_run_time = max_run_time / 1000  # set in s to coincide with interval
+        self.max_run_time = max(max_run_time, interval - 5) / 1000  # set in s to coincide with interval
 
         # install it
         self.install_task()
@@ -296,7 +299,8 @@ class HandleModbusBACnetRequests(RecurringTask):
                 if _debug: HandleModbusBACnetRequests._debug('\tgot bacnet update')
             except Empty:
                 if _debug: HandleModbusBACnetRequests._debug('\tno bacnet update')
-                break
+                # continue and not break because there might be a block on the queue
+                continue
 
             dev_inst = bn_req['dev_inst']
             obj_inst = bn_req['obj_inst']
