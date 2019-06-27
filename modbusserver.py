@@ -314,7 +314,7 @@ class HandleModbusBACnetRequests(RecurringTask):
 
     def process_task(self):
         start_time = _time()
-        if _debug: HandleModbusBACnetRequests._debug('start recurring task at %s, q size: ', start_time,
+        if _debug: HandleModbusBACnetRequests._debug('start recurring task at %s, q size: %s', start_time,
                                                      self.mbtcp_to_bcnt_queue.qsize())
 
         while (not self.mbtcp_to_bcnt_queue.empty()) and (_time() - start_time < self.max_run_time):
