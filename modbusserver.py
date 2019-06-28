@@ -1,17 +1,11 @@
 import socketserver
-# import multiprocessing
-import os
 import struct
 import mbpy.mb_poll as mb_poll
 import select
 import socket
-
-from queue import Empty, Full
 from time import time as _time
-from time import sleep as _sleep
-
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
-from bacpypes.task import RecurringTask
+
 
 _debug = 0
 _log = ModuleLogger(globals())
@@ -48,7 +42,6 @@ def parse_modbus_request(message):
     return mb_error, transaction_id, virt_id, mb_func, mb_register, mb_num_regs
 
 
-
 def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_translation=True):
     # @bacpypes_debugging
     class KlassModbusRequestHandler(socketserver.BaseRequestHandler):  # , object):
@@ -57,15 +50,10 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                                                         mb_timeout, tcp_timeout)
 
             self.app_dict = app_dict  # don't think this works the way I want since this is a class constructor
-            # self.mbtcp_to_bcnt_queue = mbtcp_to_bcnt_queue
-            # self.bcnt_to_mbtcp_queue = bcnt_to_mbtcp_queue
             self.mb_timeout = mb_timeout
             self.tcp_timeout = tcp_timeout / 1000.0
             self.mb_translation = mb_translation
 
-            # self.mb_wo = mb_wo
-            # print('init', hex(id(app_dict)))
-            # print('init', hex(id(self.app_dict)))
             super(KlassModbusRequestHandler, self).__init__(*args, **kwargs)
 
         def handle(self):
@@ -74,7 +62,6 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
             #     self.client_address -
             #     self.server -
 
-            # cur_process = multiprocessing.current_process()
             while True:
                 if self.tcp_timeout == 0:  # if tcp_timeout is 0, then run until client closes
                     select_inputs = select.select([self.request], [], [])[0]
@@ -163,76 +150,14 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                     if bcnt_pt.registerStart == (mb_register - 39999):
                         if _debug: KlassModbusRequestHandler._debug('        - request for %s, %s', dev_inst, obj_inst)
 
-                        # bn_req = {'dev_inst': dev_inst, 'obj_inst': obj_inst}
-                        # try:
-                        #     self.server.mbtcp_to_bcnt_queue.put(bn_req, timeout=0.1)
-                        # except Full:
-                        #     if _debug: KlassModbusRequestHandler._debug('(%r)        - PUT FAILURE: %s, %s',
-                        #                                                 self.mb_pid, dev_inst, obj_inst)
-                        #     self.server.mbtcp_to_bcnt_queue.put(bn_req, timeout=0.1)
-                        #
-                        # if _debug: KlassModbusRequestHandler._debug('(%r)        - queue size: %s', self.mb_pid,
-                        #                                             self.server.mbtcp_to_bcnt_queue.qsize())
-
-                        # # print('added to queue', dev_inst, pt_id)
-                        # start_time = _time()
-                        # bn_resp = None
-                        # while (_time() - start_time) < (self.mb_timeout / 1000):
-                        #     if not self.server.bcnt_to_mbtcp_queue.empty():
-                        #         try:
-                        #             bn_resp = self.server.bcnt_to_mbtcp_queue.get_nowait()
-                        #         except Empty:
-                        #             # do i need to throw a delay on this? otherwise there might be a problem with
-                        #             # hammering the queue for requests
-                        #             _sleep(0.05)
-                        #             continue
-                        #     else:
-                        #         continue
-                        #
-                        #     if (bn_resp['dev_inst'], bn_resp['obj_inst']) == (bn_req['dev_inst'], bn_req['obj_inst']):
-                        #         # found correct response
-                        #         if _debug: KlassModbusRequestHandler._debug('(%r)        - recieved response for %s, '
-                        #                                                     '%s', self.mb_pid, dev_inst, obj_inst)
-                        #         break
-                        #     else:
-                        #         if _debug: KlassModbusRequestHandler._debug('(%r)        - %s, %s doesn\'t match '
-                        #                                                     'expected %s, %s, return to queue',
-                        #                                                     self.mb_pid, bn_resp['dev_inst'],
-                        #                                                     bn_resp['obj_inst'], dev_inst, obj_inst)
-                        #
-                        #         if _time() - bn_resp['q_timestamp'] < 30:
-                        #             if _debug: KlassModbusRequestHandler._debug('(%r)            - returned to queue',
-                        #                                                         self.mb_pid)
-                        #             # if the response was put in the queue within last 30 seconds, then put back in the
-                        #             #     queue, otherwise, let it go
-                        #             try:
-                        #                 self.server.bcnt_to_mbtcp_queue.put(bn_resp, timeout=0.1)
-                        #             except Full:
-                        #                 if _debug: KlassModbusRequestHandler._debug('(%r)            - PUT FAILURE!:',
-                        #                                                             self.mb_pid)
-                        #                 self.server.bcnt_to_mbtcp_queue.put(bn_resp, timeout=0.1)
-                        #
-                        #         bn_resp = None
-                        #         # print('wrong BACnet response found!')
-
-                        # if bn_resp is None:
-                        #     mb_error = mb_poll.MB_ERR_DICT[11]
-                        #     response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id, mb_func + 128,
-                        #                       mb_error[1]])
-                        #     if _debug: KlassModbusRequestHandler._debug('(%r)    - modbus return FAILURE: %r at %s',
-                        #                                                 self.mb_pid, list(response), _time())
-
                         if bcnt_pt.reliability == 'noFaultDetected':
                             val = bytearray(struct.pack('>f', bcnt_pt.presentValue))  # > forces big endian
-                            # print('pv:', bn_resp['presentValue'], ', ba:', val.hex(), len(val), bytes(val).hex())
 
                             if self.app_dict[dev_inst].localDevice.meterRespWordOrder == 'msw':
-                                # print('msw', val.hex(), bytes(val).hex())
                                 pass  # nothing to do here
                             else:
                                 val.extend(val[0:2])
                                 val = val[2:]
-                                # print('lsw', val.hex(), bytes(val).hex())
 
                             response = bytearray([transaction_id[0], transaction_id[1], 0, 0, 0, 7, virt_id, mb_func,
                                                   4])
@@ -292,131 +217,9 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
     return KlassModbusRequestHandler
 
 
-# @bacpypes_debugging
-# class HandleModbusBACnetRequests(RecurringTask):
-#     def __init__(self, mbtcp_to_bcnt_queue, bcnt_to_mbtcp_queue, app_dict, interval, max_run_time=50):
-#         if _debug: HandleModbusBACnetRequests._debug('init')
-#         RecurringTask.__init__(self, interval)
-#
-#         self.mbtcp_to_bcnt_queue = mbtcp_to_bcnt_queue
-#         self.bcnt_to_mbtcp_queue = bcnt_to_mbtcp_queue
-#         self.app_dict = app_dict
-#         self.max_run_time = max(max_run_time, interval - 5) / 1000  # set in s to coincide with interval
-#
-#         # install it
-#         self.install_task()
-#
-#     def process_task(self):
-#         start_time = _time()
-#         if _debug: HandleModbusBACnetRequests._debug('start recurring task  q size: %s (%s), at %s',
-#                                                      self.mbtcp_to_bcnt_queue.qsize(), self.mbtcp_to_bcnt_queue.empty(),
-#                                                      start_time)
-#
-#         while (not self.mbtcp_to_bcnt_queue.empty()) and (_time() - start_time < self.max_run_time):
-#             # if not self.bank_to_bcnt_queue.empty():
-#             if _debug: HandleModbusBACnetRequests._debug('\tqueue not empty')
-#
-#             try:
-#                 bn_req = self.mbtcp_to_bcnt_queue.get_nowait()
-#                 if _debug: HandleModbusBACnetRequests._debug('\tgot bacnet update')
-#             except Empty:
-#                 if _debug: HandleModbusBACnetRequests._debug('\tno bacnet update')
-#                 # continue and not break because there might be a block on the queue
-#                 continue
-#
-#             dev_inst = bn_req['dev_inst']
-#             obj_inst = bn_req['obj_inst']
-#
-#             if _debug: HandleModbusBACnetRequests._debug('\tdev_inst: %s, %s', dev_inst, obj_inst)
-#
-#             bn_req['reliability'] = self.app_dict[dev_inst].objectIdentifier[obj_inst].reliability
-#             bn_req['presentValue'] = self.app_dict[dev_inst].objectIdentifier[obj_inst].presentValue
-#             bn_req['q_timestamp'] = _time()
-#
-#             if _debug: HandleModbusBACnetRequests._debug('\t\tvals: %s, %s, %s', bn_req['presentValue'],
-#                                                          bn_req['reliability'], bn_req['q_timestamp'])
-#
-#             try:
-#                 self.bcnt_to_mbtcp_queue.put(bn_req, timeout=0.1)
-#             except Full:
-#                 if _debug: HandleModbusBACnetRequests._debug('\t\tPUT FAILURE!: %s, %s', dev_inst, obj_inst)
-#                 self.bcnt_to_mbtcp_queue.put(bn_req, timeout=0.1)
-#
-#             break
-#         else:
-#             if _debug: HandleModbusBACnetRequests._debug('end loop, empty: %s, time: %s',
-#                                                          self.mbtcp_to_bcnt_queue.empty(), (_time() - start_time))
-#
-#         # if _debug: HandleModbusBACnetRequests._debug('end recurring task')
-
-
-# class MBTCPServer(socketserver.TCPServer):
-#     def __init__(self, mbtcp_to_bcnt_queue, bcnt_to_mbtcp_queue, server_address, RequestHandlerClass,
-#                  bind_and_activate=True):
-#         self.mbtcp_to_bcnt_queue = mbtcp_to_bcnt_queue
-#         self.bcnt_to_mbtcp_queue = bcnt_to_mbtcp_queue
-#         socketserver.TCPServer.__init__(self, server_address, RequestHandlerClass, bind_and_activate=bind_and_activate)
-#
-#
-# class ForkedTCPServer(socketserver.ForkingMixIn, MBTCPServer):
-#     pass
-
-
 class ThreadedTCPServer(socketserver.ThreadingMixIn, socketserver.TCPServer):
     pass
 
 
-# class ForkedTCPServer(socketserver.ForkingMixIn, socketserver.TCPServer):
-#     pass
-
-
-# def client(ip, port, message):
-#     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#     sock.connect((ip, port))
-#     try:
-#         sock.sendall(bytes(message))
-#         response = sock.recv(1024)
-#         print('recieved', response)
-#     finally:
-#         sock.close()
-
-
 if __name__ == '__main__':
-    import argparse
-    import multiprocessing
-
-    parser = argparse.ArgumentParser()
-
-    parser.add_argument('ip', type=str, help='ip of local machine')
-    parser.add_argument('port', type=int, help='socket port')
-    parser.add_argument('-f', '--fork', action='store_true', help='Create different process instead of different '
-                                                                  'thread.')
-    args = parser.parse_args()
-
-    # HOST, PORT = 'localhost', 502
-    # HOST, PORT = '130.91.139.94', 502
-    HOST = args.ip
-    PORT = args.port
-
-    socketserver.TCPServer.allow_reuse_address = True
-
-    ModbusRequestHandler = make_modbus_request_handler(mb_timeout=1000)
-    modbus_fork_server = ForkedTCPServer((HOST, PORT), ModbusRequestHandler)
-    ip, port = modbus_fork_server.server_address
-
-    server_fork = multiprocessing.Process(target=modbus_fork_server.serve_forever)
-    server_fork.daemon = True
-    server_fork.start()
-    # server_fork.join(timeout=1)
-
-    print('server loop running in process:', server_fork.name)
-
-    # client(ip, port, [0, 0, 0, 0, 0, 6, 15, 3, 0, 0, 0, 20])
-
-    try:
-        while True:
-            pass
-    except KeyboardInterrupt:
-        pass
-
-    modbus_fork_server.socket.close()
+    pass
