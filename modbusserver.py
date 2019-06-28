@@ -4,6 +4,7 @@ import mbpy.mb_poll as mb_poll
 import select
 import socket
 from time import time as _time
+import threading
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
 
 
@@ -46,7 +47,9 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
     # @bacpypes_debugging
     class KlassModbusRequestHandler(socketserver.BaseRequestHandler):  # , object):
         def __init__(self, *args, **kwargs):
-            if _debug: KlassModbusRequestHandler._debug('__init__ mb timeout: %r, tcp timeout: %r',
+            self.th_id = threading.get_ident() % 10000
+
+            if _debug: KlassModbusRequestHandler._debug('%s __init__ mb timeout: %r, tcp timeout: %r', self.th_id,
                                                         mb_timeout, tcp_timeout)
 
             self.app_dict = app_dict  # don't think this works the way I want since this is a class constructor
@@ -73,27 +76,28 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                     try:
                         data = self.request.recv(1024)
                     except socket.timeout:
-                        if _debug: KlassModbusRequestHandler._debug('    - modbus socket timeout')
+                        if _debug: KlassModbusRequestHandler._debug('%s    - modbus socket timeout', self.th_id)
                         break
                     except socket.error:
-                        if _debug: KlassModbusRequestHandler._debug('    - modbus socket error')
+                        if _debug: KlassModbusRequestHandler._debug('%s    - modbus socket error', self.th_id)
                         break
 
                     # if _debug: KlassModbusRequestHandler._debug('incoming modbus request in process %s: %s',
                     #                                             cur_process, data)
                     if not data:  # if socket closes, recv() returns ''
-                        if _debug: KlassModbusRequestHandler._debug('    - modbus socket closed by other')
+                        if _debug: KlassModbusRequestHandler._debug('%s    - modbus socket closed by other', self.th_id)
                         break
 
                     mb_error, transaction_id, virt_id, mb_func, mb_register, mb_num_regs = parse_modbus_request(data)
                     dev_inst, mb_ip, slave_id = self.find_slave_id(virt_id)
 
-                    if _debug: KlassModbusRequestHandler._debug('    - modbus request: virt_id: %s, register: %s at %s',
-                                                                virt_id, mb_register, _time())
+                    if _debug: KlassModbusRequestHandler._debug('%s    - modbus request: virt_id: %s, register: %s at '
+                                                                '%s', self.th_id, virt_id, mb_register, _time())
 
                     if mb_error != 0:
                         # if error found in request
-                        if _debug: KlassModbusRequestHandler._debug('    - modbus request error: %r', mb_error)
+                        if _debug: KlassModbusRequestHandler._debug('%s    - modbus request error: %r', self.th_id,
+                                                                    mb_error)
                         response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id, mb_func + 128,
                                           mb_error[1]])
                     elif dev_inst != 0 and self.mb_translation and 19999 < mb_register < 40000:
@@ -137,8 +141,8 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
             return response
 
         def _bacnet_request(self, dev_inst, transaction_id, virt_id, mb_func, mb_register, mb_num_regs):
-            if _debug: KlassModbusRequestHandler._debug('    - bacnet store request: %r, virt_id: %r, func: %r, '
-                                                        'register: %r, num_regs: %r', transaction_id,
+            if _debug: KlassModbusRequestHandler._debug('%s    - bacnet store request: %r, virt_id: %r, func: %r, '
+                                                        'register: %r, num_regs: %r', self.th_id, transaction_id,
                                                         virt_id, mb_func, mb_register, mb_num_regs)
             if mb_num_regs == 2:
                 for obj_inst in self.app_dict[dev_inst].objectIdentifier:
@@ -148,7 +152,8 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                         continue
 
                     if bcnt_pt.registerStart == (mb_register - 39999):
-                        if _debug: KlassModbusRequestHandler._debug('        - request for %s, %s', dev_inst, obj_inst)
+                        if _debug: KlassModbusRequestHandler._debug('%s        - request for %s, %s', self.th_id,
+                                                                    dev_inst, obj_inst)
 
                         if bcnt_pt.reliability == 'noFaultDetected':
                             val = bytearray(struct.pack('>f', bcnt_pt.presentValue))  # > forces big endian
@@ -163,27 +168,27 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                                                   4])
                             response.extend(val)
 
-                            if _debug: KlassModbusRequestHandler._debug('    - modbus return success: %r at %s',
-                                                                        list(response), _time())
+                            if _debug: KlassModbusRequestHandler._debug('%s    - modbus return success: %r at %s',
+                                                                        self.th_id, list(response), _time())
                         else:
                             # bad reliability
                             mb_error = mb_poll.MB_ERR_DICT[4]
                             response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id, mb_func + 128,
                                               mb_error[1]])
-                            if _debug: KlassModbusRequestHandler._debug('    - modbus return comm FAILURE: %r at %s',
-                                                                        list(response), _time())
+                            if _debug: KlassModbusRequestHandler._debug('%s    - modbus return comm FAILURE: %r at %s',
+                                                                        self.th_id, list(response), _time())
                         break
                 else:
-                    if _debug: KlassModbusRequestHandler._debug('    - bad register request: %s not in library',
-                                                                mb_register)
+                    if _debug: KlassModbusRequestHandler._debug('%s    - bad register request: %s not in library',
+                                                                self.th_id, mb_register)
                     # no such register found: mb_register - 49999
                     mb_error = mb_poll.MB_ERR_DICT[2]
                     response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id, mb_func + 128,
                                       mb_error[1]])
             else:
                 # wrong number of regs requested
-                if _debug: KlassModbusRequestHandler._debug('    - bad number of regs requested (%s), should be 2',
-                                                            mb_num_regs)
+                if _debug: KlassModbusRequestHandler._debug('%s    - bad number of regs requested (%s), should be 2',
+                                                            self.th_id, mb_num_regs)
                 mb_error = mb_poll.MB_ERR_DICT[2]
                 response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id, mb_func + 128,
                                   mb_error[1]])
@@ -192,8 +197,8 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
 
         def _straight_through_request(self, mb_ip, transaction_id, virt_id, slave_id, mb_func, mb_register,
                                       mb_num_regs):
-            if _debug: KlassModbusRequestHandler._debug('    - straighthrough request: %r, slave: %r, func: %r, '
-                                                        'register: %r, num_regs: %r', transaction_id,
+            if _debug: KlassModbusRequestHandler._debug('%s    - straighthrough request: %r, slave: %r, func: %r, '
+                                                        'register: %r, num_regs: %r', self.th_id, transaction_id,
                                                         slave_id, mb_func, mb_register, mb_num_regs)
             raw_byte_return = mb_poll.modbus_poller(mb_ip, slave_id, mb_register, mb_num_regs,
                                                     data_type='uint16', zero_based=True, mb_func=mb_func,
@@ -202,8 +207,8 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                 mb_error = raw_byte_return
                 response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id, mb_func + 128,
                                   mb_error[1]])
-                if _debug: KlassModbusRequestHandler._debug('        - modbus return error trans id %r: %r',
-                                                            transaction_id, mb_error)
+                if _debug: KlassModbusRequestHandler._debug('%s        - modbus return error trans id %r: %r',
+                                                            self.th_id, transaction_id, mb_error)
             else:
                 len_return = len(raw_byte_return) + 3
                 len_rtn_hi = (len_return >> 8) & 0xff
@@ -211,7 +216,8 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                 response_list = transaction_id + [0, 0, len_rtn_hi, len_rtn_lo, virt_id, mb_func, len_return - 3]
                 response_list.extend(raw_byte_return)
                 response = bytes(response_list)
-                if _debug: KlassModbusRequestHandler._debug('        - modbus return success %r', response_list[0:9])
+                if _debug: KlassModbusRequestHandler._debug('%s        - modbus return success %r', self.th_id,
+                                                            response_list[0:9])
             return response
     bacpypes_debugging(KlassModbusRequestHandler)
     return KlassModbusRequestHandler
