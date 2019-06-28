@@ -33,7 +33,7 @@ import modbusregisters
 import modbusbacnetclasses
 import socketserver
 # from multiprocessing import Process
-import multiprocessing as mp
+# import multiprocessing as mp
 import threading
 import modbusserver
 import queue
@@ -361,8 +361,8 @@ def main():
     # mbtcp_to_bcnt_queue = mp.Queue()
     # bcnt_to_mbtcp_queue = mp.Queue()
 
-    mbtcp_to_bcnt_queue = queue.Queue()
-    bcnt_to_mbtcp_queue = queue.Queue()
+    # mbtcp_to_bcnt_queue = queue.Queue()
+    # bcnt_to_mbtcp_queue = queue.Queue()
 
     for fn in os.listdir(sys.path[0] + '/DeviceList'):
         if fn.endswith('.json'):  # and fn.startswith('DRL'):
@@ -497,8 +497,8 @@ def main():
     update_objects = modbusbacnetclasses.UpdateObjectsFromModbus(bank_to_bcnt_queue, app_dict,
                                                                  bcnt_obj_update_interval)
 
-    print('init modbus response with bacnet vals task')
-    mbtcp_bcnt_task = modbusserver.HandleModbusBACnetRequests(mbtcp_to_bcnt_queue, bcnt_to_mbtcp_queue, app_dict, 50)
+    # print('init modbus response with bacnet vals task')
+    # mbtcp_bcnt_task = modbusserver.HandleModbusBACnetRequests(mbtcp_to_bcnt_queue, bcnt_to_mbtcp_queue, app_dict, 50)
 
     print('start bank and launcher')
     obj_val_bank.start()
@@ -528,8 +528,7 @@ def main():
 
     modbusserver.ThreadedTCPServer.daemon_threads = True
     modbusserver.ThreadedTCPServer.allow_reuse_address = True
-    modbus_thread_server = modbusserver.ThreadedTCPServer(mbtcp_to_bcnt_queue, bcnt_to_mbtcp_queue,
-                                                          (str(args.ini.localip).split('/')[0], 502),
+    modbus_thread_server = modbusserver.ThreadedTCPServer((str(args.ini.localip).split('/')[0], 502),
                                                           ModbusRequestHandler)
 
     mb_server_thread = threading.Thread(target=modbus_thread_server.serve_forever)
