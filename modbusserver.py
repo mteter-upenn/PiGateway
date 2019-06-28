@@ -4,12 +4,20 @@ import mbpy.mb_poll as mb_poll
 import select
 import socket
 from time import time as _time
+from time import localtime, strftime
 import threading
 from bacpypes.debugging import bacpypes_debugging, ModuleLogger
 
 
 _debug = 0
 _log = ModuleLogger(globals())
+
+
+def _get_ftime():
+    cur_tm = _time()
+    ftm = strftime('%H:%M:%S', localtime(cur_tm))
+    ftm += str(round(cur_tm - int(cur_tm), 3))[1:]
+    return ftm
 
 
 def parse_modbus_request(message):
@@ -92,7 +100,7 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                     dev_inst, mb_ip, slave_id = self.find_slave_id(virt_id)
 
                     if _debug: KlassModbusRequestHandler._debug('%s    - modbus request: virt_id: %s, register: %s at '
-                                                                '%s', self.th_id, virt_id, mb_register, _time())
+                                                                '%s', self.th_id, virt_id, mb_register, _get_ftime())
 
                     if mb_error != 0:
                         # if error found in request
@@ -169,14 +177,14 @@ def make_modbus_request_handler(app_dict, mb_timeout=1000, tcp_timeout=5000, mb_
                             response.extend(val)
 
                             if _debug: KlassModbusRequestHandler._debug('%s    - modbus return success: %r at %s',
-                                                                        self.th_id, list(response), _time())
+                                                                        self.th_id, list(response), _get_ftime())
                         else:
                             # bad reliability
                             mb_error = mb_poll.MB_ERR_DICT[4]
                             response = bytes([transaction_id[0], transaction_id[1], 0, 0, 0, 3, virt_id, mb_func + 128,
                                               mb_error[1]])
                             if _debug: KlassModbusRequestHandler._debug('%s    - modbus return comm FAILURE: %r at %s',
-                                                                        self.th_id, list(response), _time())
+                                                                        self.th_id, list(response), _get_ftime())
                         break
                 else:
                     if _debug: KlassModbusRequestHandler._debug('%s    - bad register request: %s not in library',
